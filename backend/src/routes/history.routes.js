@@ -1,0 +1,1 @@
+const express = require('express'); const { downloadHistory } = require('../controllers/history.controller'); const router = express.Router(); router.get('/download', downloadHistory); module.exports = router;

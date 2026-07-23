@@ -1,0 +1,1 @@
+const express = require('express'); const { getTemplate, updateTemplate } = require('../controllers/template.controller'); const router = express.Router(); router.get('/', getTemplate); router.post('/', updateTemplate); module.exports = router;

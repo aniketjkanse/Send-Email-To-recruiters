@@ -1,0 +1,21 @@
+{
+  "subject": "Application for Network Security Engineer | Immidiate Joiner | 3+ years exp",
+  "body": "Dear Recruiter,\n\nI hope you are doing well.\n\nI am writing to express my interest in any Technical Security Engineer / Network Security Engineer opportunities. I have 3+ years of experience in Check Point, Palo Alto, FortiGate, firewall management, VPN, NAT, AlgoSec (AFA & FireFlow), SmartConsole, network security operations, and troubleshooting.\n\nMy last working day with my current organization is 27 July 2026, and I will be available to join thereafter.\n\nPlease find my resume attached for your review.\n\nhttps://drive.google.com/file/d/1TGptz1VbYe3o2EjW2LnhBgCJTPcliHQJ/view?usp=drivesdk\n\nI would appreciate the opportunity to discuss my profile and explore any suitable openings.\n\nThank you for your time and consideration. I look forward to hearing from you.\n\n\nBest Regards,\nMangesh Pandhare\n📞 7756014449\n✉️ mangeshpandhare366@gmail.com",
+  "resumeFileName": " ",
+  "dailyLimit": 100,
+  "minDelaySeconds": 15,
+  "maxDelaySeconds": 40,
+  "stopAfterContinuousFailures": 3,
+  "stopAfterTotalFailures": 8,
+  "skipPersonalEmails": true,
+  "dryRun": false,
+  "blockedDomains": [
+    "gmail.com",
+    "yahoo.com",
+    "hotmail.com",
+    "outlook.com",
+    "rediffmail.com",
+    "icloud.com",
+    "protonmail.com"
+  ]
+}

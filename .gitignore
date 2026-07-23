@@ -1,0 +1,13 @@
+node_modules
+.env
+
+backend/.env
+backend/node_modules
+backend/src/data/uploads/*
+backend/src/data/sent_emails.json
+backend/src/data/send_history.xlsx
+backend/src/data/sender_config.json
+
+frontend/node_modules
+frontend/.env
+frontend/dist
