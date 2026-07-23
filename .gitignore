@@ -4,6 +4,7 @@ node_modules
 backend/.env
 backend/node_modules
 backend/src/data/uploads/*
+backend/src/data/extracted_emails.txt
 backend/src/data/sent_emails.json
 backend/src/data/send_history.xlsx
 backend/src/data/sender_config.json

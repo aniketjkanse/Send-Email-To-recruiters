@@ -7,8 +7,8 @@
   "maxDelaySeconds": 40,
   "stopAfterContinuousFailures": 3,
   "stopAfterTotalFailures": 8,
-  "skipPersonalEmails": true,
-  "dryRun": false,
+  "skipPersonalEmails": false,
+  "dryRun": true,
   "blockedDomains": [
     "gmail.com",
     "yahoo.com",
