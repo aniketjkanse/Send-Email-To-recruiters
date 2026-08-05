@@ -8,7 +8,7 @@
   "stopAfterContinuousFailures": 3,
   "stopAfterTotalFailures": 8,
   "skipPersonalEmails": false,
-  "dryRun": true,
+  "dryRun": false,
   "blockedDomains": [
     "gmail.com",
     "yahoo.com",
