@@ -1,5 +1,4 @@
 const fs = require('fs');
-const axios = require('axios');
 const nodemailer = require('nodemailer');
 
 const { RESUME_FILE } = require('../utils/path.util');
@@ -10,37 +9,23 @@ function buildAttachmentsForGmail(template) {
     return [];
   }
 
-  return [
-    {
-      filename: template.resumeFileName || 'Resume.pdf',
-      path: RESUME_FILE
-    }
-  ];
-}
+  let uploadedFileName = 'Resume.pdf';
 
-function buildAttachmentsForBrevo(template) {
-  if (!fs.existsSync(RESUME_FILE)) {
-    return [];
+  if (fs.existsSync(`${RESUME_FILE}.meta`)) {
+    const meta = JSON.parse(
+      fs.readFileSync(`${RESUME_FILE}.meta`, 'utf8')
+    );
+
+    uploadedFileName = meta.originalName;
   }
 
-  const fileContent = fs.readFileSync(RESUME_FILE).toString('base64');
-
   return [
     {
-      name: template.resumeFileName || 'Resume.pdf',
-      content: fileContent
+      filename: uploadedFileName,
+      path: RESUME_FILE,
+      contentType: 'application/pdf'
     }
   ];
-}
-
-function getProvider() {
-  const senderConfig = readSenderConfig();
-
-  return (
-    process.env.EMAIL_PROVIDER ||
-    senderConfig.emailProvider ||
-    'gmail'
-  );
 }
 
 function getGmailCredentials() {
@@ -81,65 +66,14 @@ async function sendWithGmail(toEmail, template) {
     attachments: buildAttachmentsForGmail(template)
   };
 
-  await transporter.sendMail(mailOptions);
-
-  return {
-    status: 'SENT',
-    reason: ''
-  };
-}
-
-async function sendWithBrevo(toEmail, template) {
-  const apiKey = process.env.BREVO_API_KEY;
-  const senderEmail = process.env.BREVO_SENDER_EMAIL;
-  const senderName = process.env.BREVO_SENDER_NAME || 'Job Outreach';
-
-  if (!apiKey) {
-    throw new Error('BREVO_API_KEY is missing in Render environment variables.');
-  }
-
-  if (!senderEmail) {
-    throw new Error('BREVO_SENDER_EMAIL is missing in Render environment variables.');
-  }
-
-  const payload = {
-    sender: {
-      name: senderName,
-      email: senderEmail
-    },
-    to: [
-      {
-        email: toEmail
-      }
-    ],
-    subject: template.subject,
-    textContent: template.body
-  };
-
-  const attachments = buildAttachmentsForBrevo(template);
-
-  if (attachments.length > 0) {
-    payload.attachment = attachments;
-  }
-
-  console.log('Sending using Brevo API...');
+  console.log('==================================');
+  console.log('Sending Email');
   console.log('To:', toEmail);
-  console.log('From:', senderEmail);
   console.log('Subject:', template.subject);
+  console.log('Attachments:', mailOptions.attachments);
+  console.log('==================================');
 
-  await axios.post(
-    'https://api.brevo.com/v3/smtp/email',
-    payload,
-    {
-      headers: {
-        accept: 'application/json',
-        'api-key': apiKey,
-        'content-type': 'application/json'
-      }
-    }
-  );
-
-  console.log('Brevo email sent successfully:', toEmail);
+  await transporter.sendMail(mailOptions);
 
   return {
     status: 'SENT',
@@ -149,18 +83,18 @@ async function sendWithBrevo(toEmail, template) {
 
 async function sendEmail(toEmail, template) {
   const dryRun =
-    template.dryRun === true || process.env.DEFAULT_DRY_RUN === 'true';
-
-  const provider = getProvider();
+    template.dryRun === true ||
+    process.env.DEFAULT_DRY_RUN === 'true';
 
   console.log('========== EMAIL SEND START ==========');
   console.log('To Email:', toEmail);
-  console.log('Email Provider:', provider);
   console.log('Dry Run:', dryRun);
   console.log('Subject:', template.subject);
 
   if (dryRun) {
-    console.log(`[DRY RUN] Email not actually sent to ${toEmail}`);
+    console.log(
+      `[DRY RUN] Email not actually sent to ${toEmail}`
+    );
 
     return {
       status: 'DRY_RUN',
@@ -169,20 +103,10 @@ async function sendEmail(toEmail, template) {
   }
 
   try {
-    if (provider.toLowerCase() === 'brevo') {
-      return await sendWithBrevo(toEmail, template);
-    }
-
     return await sendWithGmail(toEmail, template);
   } catch (error) {
     console.log('Email sending failed for:', toEmail);
     console.log('Error message:', error.message);
-
-    if (error.response) {
-      console.log('API error status:', error.response.status);
-      console.log('API error data:', error.response.data);
-    }
-
     throw error;
   }
 }
