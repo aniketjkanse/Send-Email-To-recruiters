@@ -79,8 +79,8 @@ function resetState() {
 
 function requestStop() {
   if (
-    schedulerState.status !==
-    'RUNNING'
+    schedulerState.status !== 'RUNNING' &&
+    schedulerState.status !== 'STOPPING'
   ) {
     schedulerState.message =
       'Scheduler is not running';
@@ -115,16 +115,78 @@ async function cancellableWait(seconds) {
   return true;
 }
 
+function saveSentEmailImmediately(email) {
+  const currentSentEmails =
+    readJson(
+      SENT_EMAILS_FILE,
+      []
+    )
+      .map(normalizeEmail)
+      .filter(Boolean);
+
+  const normalizedEmail =
+    normalizeEmail(email);
+
+  if (!normalizedEmail) {
+    throw new Error(
+      `Unable to normalize sent email: ${email}`
+    );
+  }
+
+  const updatedSentEmails = [
+    ...new Set([
+      ...currentSentEmails,
+      normalizedEmail
+    ])
+  ];
+
+  writeJson(
+    SENT_EMAILS_FILE,
+    updatedSentEmails
+  );
+
+  console.log(
+    `Added ${normalizedEmail} to sent_emails.json`
+  );
+}
+
+async function saveHistorySafely(
+  records
+) {
+  if (!records.length) {
+    return;
+  }
+
+  try {
+    await appendHistory(records);
+
+    console.log(
+      `Saved ${records.length} record(s) to send history`
+    );
+  } catch (error) {
+    console.error(
+      'Unable to update send history:',
+      error.message
+    );
+  }
+}
+
 async function runScheduler() {
-  const template = readTemplate();
+  const template =
+    readTemplate();
 
   const preview =
     buildEmailPreview(template);
 
+  const dailyLimit =
+    Number(
+      template.dailyLimit || 100
+    );
+
   const emailsToSend =
     preview.newEmails.slice(
       0,
-      template.dailyLimit || 100
+      dailyLimit
     );
 
   schedulerState = {
@@ -144,17 +206,37 @@ async function runScheduler() {
     stopRequested: false
   };
 
-  const historyRecords = [];
-
-  const oldSentEmails = readJson(
-    SENT_EMAILS_FILE,
-    []
-  ).map(normalizeEmail);
-
-  const successfullySentEmails = [];
-
   let continuousFailureCount = 0;
   let totalFailureCount = 0;
+
+  console.log(
+    '=================================='
+  );
+
+  console.log(
+    `Scheduler selected ${emailsToSend.length} email(s)`
+  );
+
+  console.log(
+    `Daily limit: ${dailyLimit}`
+  );
+
+  console.log(
+    '=================================='
+  );
+
+  if (!emailsToSend.length) {
+    schedulerState.status =
+      'COMPLETED';
+
+    schedulerState.completedAt =
+      new Date().toISOString();
+
+    schedulerState.message =
+      'No new emails available to send';
+
+    return schedulerState;
+  }
 
   for (
     let index = 0;
@@ -177,10 +259,16 @@ async function runScheduler() {
     schedulerState.status =
       'RUNNING';
 
+    schedulerState.message =
+      `Sending email ${index + 1} of ${emailsToSend.length}`;
+
     try {
       console.log(
-        `Sending email ${index + 1}/` +
-        `${emailsToSend.length} to ${email}`
+        '=================================='
+      );
+
+      console.log(
+        `Sending email ${index + 1}/${emailsToSend.length} to ${email}`
       );
 
       const result =
@@ -193,56 +281,186 @@ async function runScheduler() {
         new Date().toISOString();
 
       console.log(
-        `Email status for ${email}: ` +
-        result.status
+        `Email status for ${email}: ${result.status}`
       );
 
-      historyRecords.push({
-        email,
-
-        status: result.status,
-
-        reason:
-          result.reason || '',
-
-        sentAt,
-
-        messageId:
-          result.messageId || '',
-
-        emailType: 'INITIAL'
-      });
-
       if (result.status === 'SENT') {
-        successfullySentEmails.push(
-          email
-        );
-
         schedulerState.sent += 1;
 
+        /*
+         * Save the email immediately.
+         *
+         * This prevents duplicate sending if
+         * Nodemon restarts or the backend stops
+         * before the complete batch finishes.
+         */
+        try {
+          saveSentEmailImmediately(
+            email
+          );
+        } catch (error) {
+          console.error(
+            `Email was sent to ${email}, but sent_emails.json update failed:`,
+            error.message
+          );
+
+          await saveHistorySafely([
+            {
+              email,
+
+              status:
+                'SENT_TRACKING_FAILED',
+
+              reason:
+                error.message,
+
+              sentAt,
+
+              messageId:
+                result.messageId || '',
+
+              emailType:
+                'INITIAL'
+            }
+          ]);
+        }
+
+        /*
+         * Create the follow-up tracker record
+         * immediately after a successful send.
+         */
         if (result.messageId) {
-          createFollowUpRecord({
+          try {
+            const followUpRecord =
+              createFollowUpRecord({
+                email,
+
+                messageId:
+                  result.messageId,
+
+                sentAt,
+
+                subject:
+                  template.subject
+              });
+
+            if (followUpRecord) {
+              console.log(
+                `Follow-up tracking created for ${email}`
+              );
+            } else {
+              console.log(
+                `Follow-up record was not created for ${email}`
+              );
+            }
+          } catch (error) {
+            console.error(
+              `Email was sent to ${email}, but follow-up tracking failed:`,
+              error.message
+            );
+
+            await saveHistorySafely([
+              {
+                email,
+
+                status:
+                  'FOLLOWUP_TRACKING_FAILED',
+
+                reason:
+                  error.message,
+
+                sentAt,
+
+                messageId:
+                  result.messageId,
+
+                emailType:
+                  'INITIAL'
+              }
+            ]);
+          }
+        } else {
+          console.log(
+            `Follow-up tracking skipped for ${email} because Message-ID is missing`
+          );
+
+          await saveHistorySafely([
+            {
+              email,
+
+              status:
+                'FOLLOWUP_TRACKING_SKIPPED',
+
+              reason:
+                'Gmail did not return a Message-ID',
+
+              sentAt,
+
+              messageId: '',
+
+              emailType:
+                'INITIAL'
+            }
+          ]);
+        }
+
+        /*
+         * Save successful history immediately.
+         */
+        await saveHistorySafely([
+          {
             email,
 
-            messageId:
-              result.messageId,
+            status:
+              'SENT',
+
+            reason: '',
 
             sentAt,
 
-            subject:
-              template.subject
-          });
-        } else {
-          console.log(
-            `Follow-up tracking skipped for ${email} because no Message-ID was returned.`
-          );
-        }
-      }
+            messageId:
+              result.messageId || '',
 
-      if (
+            emailType:
+              'INITIAL'
+          }
+        ]);
+
+        console.log(
+          `Completed processing for ${email}`
+        );
+      } else if (
         result.status === 'DRY_RUN'
       ) {
         schedulerState.skipped += 1;
+
+        await saveHistorySafely([
+          {
+            email,
+
+            status:
+              'DRY_RUN',
+
+            reason:
+              result.reason || '',
+
+            sentAt,
+
+            messageId: '',
+
+            emailType:
+              'INITIAL'
+          }
+        ]);
+
+        console.log(
+          `Dry run completed for ${email}`
+        );
+      } else {
+        throw new Error(
+          result.reason ||
+          `Unexpected email status: ${result.status}`
+        );
       }
 
       continuousFailureCount = 0;
@@ -251,17 +469,45 @@ async function runScheduler() {
         index <
         emailsToSend.length - 1
       ) {
+        const minDelay =
+          Number(
+            template.minDelaySeconds ||
+            180
+          );
+
+        const maxDelay =
+          Number(
+            template.maxDelaySeconds ||
+            420
+          );
+
+        const safeMinDelay =
+          Math.max(
+            0,
+            Math.min(
+              minDelay,
+              maxDelay
+            )
+          );
+
+        const safeMaxDelay =
+          Math.max(
+            safeMinDelay,
+            maxDelay
+          );
+
         const delay =
           getRandomDelay(
-            template.minDelaySeconds ||
-              180,
-
-            template.maxDelaySeconds ||
-              420
+            safeMinDelay,
+            safeMaxDelay
           );
 
         schedulerState.message =
           `Waiting ${delay} seconds before the next email`;
+
+        console.log(
+          `Waiting ${delay} seconds before email ${index + 2}/${emailsToSend.length}`
+        );
 
         const completedWait =
           await cancellableWait(
@@ -272,30 +518,53 @@ async function runScheduler() {
           schedulerState.message =
             'Scheduler stopped during the waiting period';
 
+          console.log(
+            schedulerState.message
+          );
+
           break;
         }
+
+        console.log(
+          'Wait completed. Moving to the next email.'
+        );
       }
     } catch (error) {
       continuousFailureCount += 1;
       totalFailureCount += 1;
       schedulerState.failed += 1;
 
-      historyRecords.push({
-        email,
+      const failureTime =
+        new Date().toISOString();
 
-        status: 'FAILED',
+      console.error(
+        `Email sending failed for ${email}:`,
+        error.message
+      );
 
-        reason: error.message,
+      await saveHistorySafely([
+        {
+          email,
 
-        sentAt:
-          new Date().toISOString(),
+          status:
+            'FAILED',
 
-        emailType: 'INITIAL'
-      });
+          reason:
+            error.message,
+
+          sentAt:
+            failureTime,
+
+          messageId: '',
+
+          emailType:
+            'INITIAL'
+        }
+      ]);
 
       if (
         continuousFailureCount >=
-        (
+        Number(
           template
             .stopAfterContinuousFailures ||
           3
@@ -304,12 +573,16 @@ async function runScheduler() {
         schedulerState.message =
           'Stopped because continuous failure limit was reached';
 
+        console.log(
+          schedulerState.message
+        );
+
         break;
       }
 
       if (
         totalFailureCount >=
-        (
+        Number(
           template
             .stopAfterTotalFailures ||
           8
@@ -318,13 +591,12 @@ async function runScheduler() {
         schedulerState.message =
           'Stopped because total failure limit was reached';
 
+        console.log(
+          schedulerState.message
+        );
+
         break;
       }
-
-      console.log(
-        'Email sending failed:',
-        error
-      );
 
       const failureDelay =
         getRandomDelay(
@@ -336,6 +608,10 @@ async function runScheduler() {
         `Failure detected: ${error.message}. ` +
         `Waiting ${failureDelay} seconds before continuing`;
 
+      console.log(
+        schedulerState.message
+      );
+
       const completedFailureWait =
         await cancellableWait(
           failureDelay
@@ -343,32 +619,11 @@ async function runScheduler() {
 
       if (!completedFailureWait) {
         schedulerState.message =
-          'Scheduler stopped during failure waiting period';
+          'Scheduler stopped during the failure waiting period';
 
         break;
       }
     }
-  }
-
-  if (historyRecords.length) {
-    await appendHistory(
-      historyRecords
-    );
-  }
-
-  if (
-    successfullySentEmails.length
-  ) {
-    writeJson(
-      SENT_EMAILS_FILE,
-
-      [
-        ...new Set([
-          ...oldSentEmails,
-          ...successfullySentEmails
-        ])
-      ]
-    );
   }
 
   schedulerState.status =
@@ -381,10 +636,27 @@ async function runScheduler() {
   schedulerState.completedAt =
     new Date().toISOString();
 
-  schedulerState.message =
-    schedulerState.stopRequested
-      ? 'Scheduler stopped safely'
-      : 'Scheduler completed';
+  if (schedulerState.stopRequested) {
+    schedulerState.message =
+      'Scheduler stopped safely';
+  } else {
+    schedulerState.message =
+      `Scheduler completed. Sent: ${schedulerState.sent}, ` +
+      `Failed: ${schedulerState.failed}, ` +
+      `Skipped: ${schedulerState.skipped}`;
+  }
+
+  console.log(
+    '=================================='
+  );
+
+  console.log(
+    schedulerState.message
+  );
+
+  console.log(
+    '=================================='
+  );
 
   return schedulerState;
 }

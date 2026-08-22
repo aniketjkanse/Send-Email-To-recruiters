@@ -10,10 +10,6 @@ const templateRoutes = require('./routes/template.routes');
 const previewRoutes = require('./routes/preview.routes');
 const sendRoutes = require('./routes/send.routes');
 const historyRoutes = require('./routes/history.routes');
-
-/*
- * NEW
- */
 const followUpRoutes = require('./routes/followup.routes');
 
 const app = express();
@@ -30,7 +26,11 @@ app.use(
 app.use(
   '/uploads',
   express.static(
-    path.join(__dirname, 'data', 'uploads')
+    path.join(
+      __dirname,
+      'data',
+      'uploads'
+    )
   )
 );
 
@@ -47,10 +47,6 @@ app.use('/api/preview', previewRoutes);
 app.use('/api/send', sendRoutes);
 app.use('/api/history', historyRoutes);
 app.use('/api/config', configRoutes);
-
-/*
- * NEW FOLLOW-UP ROUTES
- */
 app.use('/api/followups', followUpRoutes);
 
 app.listen(PORT, () => {

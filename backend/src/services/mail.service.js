@@ -9,41 +9,84 @@ const {
   readSenderConfig
 } = require('./senderConfig.service');
 
-function normalizeGmailAddress(emailUser) {
-  const value = String(emailUser || '').trim();
+function normalizeGmailAddress(value) {
+  const normalized = String(value || '')
+    .trim()
+    .toLowerCase();
 
-  if (!value) {
+  if (!normalized) {
     return '';
   }
 
-  if (!value.includes('@')) {
-    return `${value}@gmail.com`;
+  if (!normalized.includes('@')) {
+    return `${normalized}@gmail.com`;
   }
 
-  return value.toLowerCase();
+  return normalized;
 }
 
-function buildAttachmentsForGmail() {
+function getGmailCredentials() {
+  const senderConfig =
+    readSenderConfig();
+
+  return {
+    emailUser:
+      normalizeGmailAddress(
+        senderConfig.emailUser ||
+        process.env.EMAIL_USER
+      ),
+
+    emailPass:
+      String(
+        senderConfig.emailPass ||
+        process.env.EMAIL_PASS ||
+        ''
+      ).trim()
+  };
+}
+
+function createGmailTransporter(
+  credentials
+) {
+  return nodemailer.createTransport({
+    service: 'gmail',
+
+    auth: {
+      user:
+        credentials.emailUser,
+
+      pass:
+        credentials.emailPass
+    }
+  });
+}
+
+function buildAttachments() {
   if (!fs.existsSync(RESUME_FILE)) {
     return [];
   }
 
-  let uploadedFileName = 'Resume.pdf';
+  let filename = 'Resume.pdf';
 
-  const metadataFile = `${RESUME_FILE}.meta`;
+  const metadataFile =
+    `${RESUME_FILE}.meta`;
 
   if (fs.existsSync(metadataFile)) {
     try {
-      const metadata = JSON.parse(
-        fs.readFileSync(metadataFile, 'utf8')
-      );
+      const metadata =
+        JSON.parse(
+          fs.readFileSync(
+            metadataFile,
+            'utf8'
+          )
+        );
 
-      if (metadata.originalName) {
-        uploadedFileName = metadata.originalName;
-      }
+      filename =
+        metadata.originalName ||
+        filename;
     } catch (error) {
       console.log(
-        'Could not read resume metadata:',
+        'Unable to read resume metadata:',
         error.message
       );
     }
@@ -51,135 +94,12 @@ function buildAttachmentsForGmail() {
 
   return [
     {
-      filename: uploadedFileName,
+      filename,
       path: RESUME_FILE,
-      contentType: 'application/pdf'
+      contentType:
+        'application/pdf'
     }
   ];
-}
-
-function getGmailCredentials() {
-  const senderConfig = readSenderConfig();
-
-  const configuredUser =
-    senderConfig.emailUser ||
-    process.env.EMAIL_USER;
-
-  const configuredPassword =
-    senderConfig.emailPass ||
-    process.env.EMAIL_PASS;
-
-  return {
-    emailUser: normalizeGmailAddress(
-      configuredUser
-    ),
-    emailPass: String(
-      configuredPassword || ''
-    ).trim()
-  };
-}
-
-function createGmailTransporter(credentials) {
-  return nodemailer.createTransport({
-    service: 'gmail',
-
-    auth: {
-      user: credentials.emailUser,
-      pass: credentials.emailPass
-    }
-  });
-}
-
-async function sendWithGmail(
-  toEmail,
-  template,
-  options = {}
-) {
-  const credentials = getGmailCredentials();
-
-  if (
-    !credentials.emailUser ||
-    !credentials.emailPass
-  ) {
-    throw new Error(
-      'Gmail sender email or app password is missing.'
-    );
-  }
-
-  const transporter =
-    createGmailTransporter(credentials);
-
-  const isFollowUp =
-    options.isFollowUp === true;
-
-  const mailOptions = {
-    from: credentials.emailUser,
-
-    to: String(toEmail || '')
-      .trim()
-      .toLowerCase(),
-
-    subject:
-      options.subject ||
-      template.subject,
-
-    text:
-      options.body ||
-      template.body,
-
-    attachments: isFollowUp
-      ? []
-      : buildAttachmentsForGmail()
-  };
-
-  /*
-   * These headers connect the follow-up with
-   * the previous email conversation.
-   */
-  if (
-    isFollowUp &&
-    options.parentMessageId
-  ) {
-    mailOptions.inReplyTo =
-      options.parentMessageId;
-
-    mailOptions.references =
-      options.references &&
-      options.references.length
-        ? options.references
-        : [options.parentMessageId];
-  }
-
-  console.log('==================================');
-  console.log(
-    isFollowUp
-      ? 'Sending Follow-Up Email'
-      : 'Sending Initial Email'
-  );
-  console.log('From:', credentials.emailUser);
-  console.log('To:', mailOptions.to);
-  console.log('Subject:', mailOptions.subject);
-  console.log(
-    'Attachments:',
-    mailOptions.attachments.length
-  );
-  console.log(
-    'In-Reply-To:',
-    mailOptions.inReplyTo || 'Not applicable'
-  );
-  console.log('==================================');
-
-  const info = await transporter.sendMail(
-    mailOptions
-  );
-
-  return {
-    status: 'SENT',
-    reason: '',
-    messageId: info.messageId || '',
-    accepted: info.accepted || [],
-    rejected: info.rejected || []
-  };
 }
 
 async function sendEmail(
@@ -189,18 +109,29 @@ async function sendEmail(
 ) {
   const dryRun =
     template.dryRun === true ||
-    process.env.DEFAULT_DRY_RUN === 'true';
+    process.env.DEFAULT_DRY_RUN ===
+      'true';
+
+  const isFollowUp =
+    options.isFollowUp === true;
 
   console.log(
     '========== EMAIL SEND START =========='
   );
 
-  console.log('To Email:', toEmail);
-  console.log('Dry Run:', dryRun);
+  console.log(
+    'To Email:',
+    toEmail
+  );
+
+  console.log(
+    'Dry Run:',
+    dryRun
+  );
 
   console.log(
     'Email Type:',
-    options.isFollowUp
+    isFollowUp
       ? 'FOLLOW_UP'
       : 'INITIAL'
   );
@@ -220,20 +151,164 @@ async function sendEmail(
     };
   }
 
-  try {
-    return await sendWithGmail(
-      toEmail,
-      template,
-      options
+  const credentials =
+    getGmailCredentials();
+
+  if (
+    !credentials.emailUser ||
+    !credentials.emailPass
+  ) {
+    throw new Error(
+      'Gmail sender email or app password is missing.'
     );
-  } catch (error) {
+  }
+
+  /*
+   * A follow-up must contain a parent
+   * Message-ID. Otherwise, it could be
+   * delivered as a standalone email.
+   */
+  if (
+    isFollowUp &&
+    !options.parentMessageId
+  ) {
+    throw new Error(
+      'Cannot send threaded follow-up because parent Message-ID is missing.'
+    );
+  }
+
+  const transporter =
+    createGmailTransporter(
+      credentials
+    );
+
+  const normalizedRecipient =
+    String(toEmail || '')
+      .trim()
+      .toLowerCase();
+
+  const mailOptions = {
+    from:
+      credentials.emailUser,
+
+    to:
+      normalizedRecipient,
+
+    subject:
+      options.subject ||
+      template.subject,
+
+    text:
+      options.body ||
+      template.body,
+
+    /*
+     * Attach resume only to the
+     * initial email.
+     */
+    attachments:
+      isFollowUp
+        ? []
+        : buildAttachments()
+  };
+
+  /*
+   * These headers make the follow-up
+   * belong to the existing conversation.
+   */
+  if (isFollowUp) {
+    mailOptions.inReplyTo =
+      options.parentMessageId;
+
+    mailOptions.references =
+      Array.isArray(
+        options.references
+      ) &&
+      options.references.length
+        ? options.references
+        : [
+            options.parentMessageId
+          ];
+  }
+
+  console.log(
+    '=================================='
+  );
+
+  console.log(
+    isFollowUp
+      ? 'Sending Threaded Follow-Up'
+      : 'Sending Initial Email'
+  );
+
+  console.log(
+    'From:',
+    credentials.emailUser
+  );
+
+  console.log(
+    'To:',
+    mailOptions.to
+  );
+
+  console.log(
+    'Subject:',
+    mailOptions.subject
+  );
+
+  console.log(
+    'Attachments:',
+    mailOptions.attachments.length
+  );
+
+  console.log(
+    'In-Reply-To:',
+    mailOptions.inReplyTo ||
+    'Not applicable'
+  );
+
+  console.log(
+    'References:',
+    mailOptions.references ||
+    'Not applicable'
+  );
+
+  console.log(
+    '=================================='
+  );
+
+  try {
+    const info =
+      await transporter.sendMail(
+        mailOptions
+      );
+
     console.log(
-      'Email sending failed for:',
-      toEmail
+      `Email successfully sent to ${normalizedRecipient}`
     );
 
     console.log(
-      'Error message:',
+      'Message-ID:',
+      info.messageId
+    );
+
+    return {
+      status: 'SENT',
+
+      reason: '',
+
+      messageId:
+        info.messageId || '',
+
+      accepted:
+        info.accepted || [],
+
+      rejected:
+        info.rejected || []
+    };
+  } catch (error) {
+    console.error(
+      `Email sending failed for ${normalizedRecipient}:`,
       error.message
     );
 
