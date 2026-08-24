@@ -1,99 +1,250 @@
 import {
   BrowserRouter,
   NavLink,
+  Navigate,
   Route,
   Routes
 } from 'react-router-dom';
 
-import Dashboard from './pages/Dashboard.jsx';
-import UploadEmails from './pages/UploadEmails.jsx';
-import Template from './pages/Template.jsx';
-import Preview from './pages/Preview.jsx';
-import Sender from './pages/Sender.jsx';
-import SenderSettings from './pages/SenderSettings.jsx';
-import FollowUps from './pages/FollowUps.jsx';
+import {
+  AuthProvider,
+  useAuth
+} from './context/AuthContext.jsx';
 
-function App() {
+import ProtectedRoute from
+  './components/ProtectedRoute.jsx';
+
+import Dashboard from
+  './pages/Dashboard.jsx';
+
+import History from
+  './pages/History.jsx';
+
+import UploadEmails from
+  './pages/UploadEmails.jsx';
+
+import Template from
+  './pages/Template.jsx';
+
+import Preview from
+  './pages/Preview.jsx';
+
+import Sender from
+  './pages/Sender.jsx';
+
+import SenderSettings from
+  './pages/SenderSettings.jsx';
+
+import FollowUps from
+  './pages/FollowUps.jsx';
+
+import Login from
+  './pages/Login.jsx';
+
+import Register from
+  './pages/Register.jsx';
+
+function ApplicationLayout() {
+  const {
+    user,
+    logout
+  } = useAuth();
+
   return (
-    <BrowserRouter>
-      <div className="app-shell">
-        <aside className="sidebar">
-          <h2>Job Outreach</h2>
+    <div className="app-shell">
+      <aside className="sidebar">
+        <div className="sidebar-brand">
+          <h2>
+            Job Outreach
+          </h2>
 
           <p className="muted">
             Email Scheduler
           </p>
+        </div>
 
-          <nav>
-            <NavLink to="/">
-              Dashboard
-            </NavLink>
+        <nav>
+          <NavLink
+            to="/"
+            end
+          >
+            Dashboard
+          </NavLink>
 
-            <NavLink to="/upload">
-              Upload
-            </NavLink>
+          <NavLink
+            to="/history"
+          >
+            History
+          </NavLink>
 
-            <NavLink to="/template">
-              Template
-            </NavLink>
+          <NavLink
+            to="/upload"
+          >
+            Upload
+          </NavLink>
 
-            <NavLink to="/preview">
-              Preview
-            </NavLink>
+          <NavLink
+            to="/template"
+          >
+            Template
+          </NavLink>
 
-            <NavLink to="/send">
-              Send
-            </NavLink>
+          <NavLink
+            to="/preview"
+          >
+            Preview
+          </NavLink>
 
-            <NavLink to="/followups">
-              Follow-Ups
-            </NavLink>
+          <NavLink
+            to="/send"
+          >
+            Send
+          </NavLink>
 
-            <NavLink to="/settings">
-              Sender Settings
-            </NavLink>
-          </nav>
-        </aside>
+          <NavLink
+            to="/followups"
+          >
+            Follow-Ups
+          </NavLink>
 
-        <main className="main-content">
-          <Routes>
-            <Route
-              path="/"
-              element={<Dashboard />}
-            />
+          <NavLink
+            to="/settings"
+          >
+            Sender Settings
+          </NavLink>
+        </nav>
 
-            <Route
-              path="/upload"
-              element={<UploadEmails />}
-            />
+        <div className="user-panel">
+          <strong>
+            {user?.name ||
+              'User'}
+          </strong>
 
-            <Route
-              path="/template"
-              element={<Template />}
-            />
+          <span>
+            {user?.email ||
+              ''}
+          </span>
 
-            <Route
-              path="/preview"
-              element={<Preview />}
-            />
+          <button
+            type="button"
+            className="logout-button"
+            onClick={
+              logout
+            }
+          >
+            Logout
+          </button>
+        </div>
+      </aside>
 
-            <Route
-              path="/send"
-              element={<Sender />}
-            />
+      <main className="main-content">
+        <Routes>
+          <Route
+            path="/"
+            element={
+              <Dashboard />
+            }
+          />
 
-            <Route
-              path="/followups"
-              element={<FollowUps />}
-            />
+          <Route
+            path="/history"
+            element={
+              <History />
+            }
+          />
 
-            <Route
-              path="/settings"
-              element={<SenderSettings />}
-            />
-          </Routes>
-        </main>
-      </div>
+          <Route
+            path="/upload"
+            element={
+              <UploadEmails />
+            }
+          />
+
+          <Route
+            path="/template"
+            element={
+              <Template />
+            }
+          />
+
+          <Route
+            path="/preview"
+            element={
+              <Preview />
+            }
+          />
+
+          <Route
+            path="/send"
+            element={
+              <Sender />
+            }
+          />
+
+          <Route
+            path="/followups"
+            element={
+              <FollowUps />
+            }
+          />
+
+          <Route
+            path="/settings"
+            element={
+              <SenderSettings />
+            }
+          />
+
+          <Route
+            path="*"
+            element={
+              <Navigate
+                to="/"
+                replace
+              />
+            }
+          />
+        </Routes>
+      </main>
+    </div>
+  );
+}
+
+function ProtectedApplication() {
+  return (
+    <ProtectedRoute>
+      <ApplicationLayout />
+    </ProtectedRoute>
+  );
+}
+
+function App() {
+  return (
+    <BrowserRouter>
+      <AuthProvider>
+        <Routes>
+          <Route
+            path="/login"
+            element={
+              <Login />
+            }
+          />
+
+          <Route
+            path="/register"
+            element={
+              <Register />
+            }
+          />
+
+          <Route
+            path="/*"
+            element={
+              <ProtectedApplication />
+            }
+          />
+        </Routes>
+      </AuthProvider>
     </BrowserRouter>
   );
 }

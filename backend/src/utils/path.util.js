@@ -1,48 +1,41 @@
-const path = require('path');
+const path =
+  require('path');
 
-const DATA_DIR = path.join(
-  __dirname,
-  '..',
-  'data'
-);
+const SOURCE_DIR =
+  path.resolve(
+    __dirname,
+    '..'
+  );
 
-const UPLOAD_DIR = path.join(
-  DATA_DIR,
-  'uploads'
-);
+const DATA_DIR =
+  path.join(
+    SOURCE_DIR,
+    'data'
+  );
+
+const UPLOAD_DIR =
+  path.join(
+    DATA_DIR,
+    'uploads',
+    'temporary'
+  );
+
+const PRIVATE_DATA_DIR =
+  path.join(
+    DATA_DIR,
+    'private'
+  );
+
+const PRIVATE_RESUME_DIR =
+  path.join(
+    PRIVATE_DATA_DIR,
+    'resumes'
+  );
 
 module.exports = {
+  SOURCE_DIR,
   DATA_DIR,
-
   UPLOAD_DIR,
-
-  EXTRACTED_EMAILS_FILE: path.join(
-    DATA_DIR,
-    'extracted_emails.txt'
-  ),
-
-  SENT_EMAILS_FILE: path.join(
-    DATA_DIR,
-    'sent_emails.json'
-  ),
-
-  FOLLOWUP_TRACKER_FILE: path.join(
-    DATA_DIR,
-    'followup_tracker.json'
-  ),
-
-  SEND_HISTORY_FILE: path.join(
-    DATA_DIR,
-    'send_history.xlsx'
-  ),
-
-  EMAIL_TEMPLATE_FILE: path.join(
-    DATA_DIR,
-    'email_template.json'
-  ),
-
-  RESUME_FILE: path.join(
-    UPLOAD_DIR,
-    'resume.pdf'
-  )
+  PRIVATE_DATA_DIR,
+  PRIVATE_RESUME_DIR
 };

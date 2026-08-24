@@ -1,17 +1,62 @@
-const express = require('express');
+const express =
+  require('express');
 
 const {
-  startSending,
-  stopSending,
-  getSendingStatus,
-  resetSendingStatus
-} = require('../controllers/send.controller');
+  startScheduler,
+  getSchedulerStatus,
+  stopScheduler,
+  resetScheduler
+} = require(
+  '../controllers/send.controller'
+);
 
-const router = express.Router();
+const {
+  authenticateToken
+} = require(
+  '../middleware/auth.middleware'
+);
 
-router.post('/start', startSending);
-router.post('/stop', stopSending);
-router.get('/status', getSendingStatus);
-router.post('/reset', resetSendingStatus);
+const router =
+  express.Router();
 
-module.exports = router;
+/*
+ * All scheduler routes require JWT.
+ */
+router.use(
+  authenticateToken
+);
+
+/*
+ * POST /api/send/start
+ */
+router.post(
+  '/start',
+  startScheduler
+);
+
+/*
+ * GET /api/send/status
+ */
+router.get(
+  '/status',
+  getSchedulerStatus
+);
+
+/*
+ * POST /api/send/stop
+ */
+router.post(
+  '/stop',
+  stopScheduler
+);
+
+/*
+ * POST /api/send/reset
+ */
+router.post(
+  '/reset',
+  resetScheduler
+);
+
+module.exports =
+  router;

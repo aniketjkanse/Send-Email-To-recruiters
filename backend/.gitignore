@@ -1,5 +1,8 @@
 node_modules
 .env
+backend/.env
 src/data/uploads/*
 src/data/sent_emails.json
 src/data/send_history.xlsx
+
+/src/generated/prisma

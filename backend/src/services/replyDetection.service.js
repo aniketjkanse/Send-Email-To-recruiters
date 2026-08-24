@@ -1,413 +1,620 @@
 const {
-  ImapFlow
-} = require('imapflow');
+  getFollowUpRecords,
+  markReplyDetected,
+  markReplyCheckCompleted,
+  setFollowUpError
+} = require(
+  './databaseFollowUp.service'
+);
 
 const {
-  simpleParser
-} = require('mailparser');
+  withGmailInbox,
+  findReplyForTracker
+} = require(
+  './gmailReply.service'
+);
 
-const {
-  getGmailCredentials
-} = require('./mail.service');
-
-function normalizeEmail(value) {
-  return String(value || '')
-    .trim()
-    .toLowerCase();
-}
-
-function normalizeMessageId(value) {
-  return String(value || '')
-    .trim()
-    .replace(/^<|>$/g, '')
-    .toLowerCase();
-}
-
-function extractMessageIds(value) {
-  if (!value) {
-    return [];
-  }
-
-  const text = Array.isArray(value)
-    ? value.join(' ')
-    : String(value);
-
-  const messageIdMatches =
-    text.match(/<[^>]+>/g);
-
-  if (messageIdMatches) {
-    return messageIdMatches
-      .map(normalizeMessageId)
-      .filter(Boolean);
-  }
-
-  return text
-    .split(/\s+/)
-    .map(normalizeMessageId)
-    .filter(Boolean);
-}
-
-function getTrackedMessageIds(record) {
-  const messageIds = [
-    record.initialMessageId,
-    record.followUp1MessageId,
-    record.followUp2MessageId,
-    record.lastMessageId,
-    ...(record.sentMessageIds || [])
-  ];
-
-  return new Set(
-    messageIds
-      .map(normalizeMessageId)
-      .filter(Boolean)
-  );
-}
-
-function isActiveRecord(record) {
-  if (!record) {
-    return false;
-  }
-
-  if (
-    !record.email ||
-    !record.initialSentAt
-  ) {
-    return false;
-  }
-
-  if (record.replyReceived === true) {
-    return false;
-  }
-
-  return ![
-    'REPLIED',
-    'STOPPED',
-    'FOLLOWUP_2_SENT',
-    'COMPLETED'
-  ].includes(record.status);
-}
-
-function extractSenderEmail(parsedEmail) {
-  const senderValue =
-    parsedEmail.from?.value;
-
-  if (
-    !Array.isArray(senderValue) ||
-    senderValue.length === 0
-  ) {
-    return '';
-  }
-
-  return normalizeEmail(
-    senderValue[0]?.address
-  );
-}
-
-async function createImapClient() {
-  const credentials =
-    getGmailCredentials();
-
-  if (
-    !credentials.emailUser ||
-    !credentials.emailPass
-  ) {
-    throw new Error(
-      'Gmail credentials are missing for reply detection.'
-    );
-  }
-
-  return new ImapFlow({
-    host: 'imap.gmail.com',
-
-    port: 993,
-
-    secure: true,
-
-    auth: {
-      user:
-        credentials.emailUser,
-
-      pass:
-        credentials.emailPass
-    },
-
-    logger: false
-  });
-}
-
-async function findReplyForRecord(
-  client,
-  record
+function requireUserId(
+  userId
 ) {
-  const recipientEmail =
-    normalizeEmail(record.email);
-
-  const initialSentAt =
-    new Date(record.initialSentAt);
-
-  if (!recipientEmail) {
-    return null;
-  }
-
-  if (
-    Number.isNaN(
-      initialSentAt.getTime()
-    )
-  ) {
-    console.log(
-      `Invalid initial sent date for ${recipientEmail}`
+  if (!userId) {
+    throw new Error(
+      'Authenticated user ID is required.'
     );
-
-    return null;
   }
 
-  /*
-   * Search the sender Gmail inbox for
-   * messages received from this recipient
-   * after the initial email was sent.
-   */
-  const messageUids =
-    await client.search({
-      from: recipientEmail,
-
-      since: initialSentAt
-    });
-
-  if (
-    !messageUids ||
-    messageUids.length === 0
-  ) {
-    return null;
-  }
-
-  const trackedMessageIds =
-    getTrackedMessageIds(record);
-
-  for await (
-    const message of client.fetch(
-      messageUids,
-      {
-        uid: true,
-
-        source: true,
-
-        internalDate: true
-      }
-    )
-  ) {
-    if (!message.source) {
-      continue;
-    }
-
-    const parsedEmail =
-      await simpleParser(
-        message.source
-      );
-
-    const senderEmail =
-      extractSenderEmail(
-        parsedEmail
-      );
-
-    if (
-      senderEmail !== recipientEmail
-    ) {
-      continue;
-    }
-
-    const receivedDate =
-      new Date(
-        parsedEmail.date ||
-        message.internalDate ||
-        0
-      );
-
-    if (
-      Number.isNaN(
-        receivedDate.getTime()
-      )
-    ) {
-      continue;
-    }
-
-    /*
-     * Ignore messages received before or
-     * exactly when the initial email was sent.
-     */
-    if (
-      receivedDate <= initialSentAt
-    ) {
-      continue;
-    }
-
-    const relatedMessageIds = [
-      ...extractMessageIds(
-        parsedEmail.inReplyTo
-      ),
-
-      ...extractMessageIds(
-        parsedEmail.references
-      )
-    ];
-
-    /*
-     * The reply must reference one of the
-     * Message-IDs created by this application.
-     *
-     * This avoids treating an unrelated email
-     * from the same recipient as a reply.
-     */
-    const belongsToTrackedThread =
-      relatedMessageIds.some(
-        messageId =>
-          trackedMessageIds.has(
-            messageId
-          )
-      );
-
-    if (!belongsToTrackedThread) {
-      continue;
-    }
-
-    return {
-      trackerId:
-        record.id,
-
-      replyFrom:
-        senderEmail,
-
-      replyDate:
-        receivedDate.toISOString(),
-
-      replySubject:
-        parsedEmail.subject || '',
-
-      replyMessageId:
-        parsedEmail.messageId || '',
-
-      detectionMethod:
-        'MESSAGE_THREAD',
-
-      inboxUid:
-        message.uid
-    };
-  }
-
-  return null;
+  return userId;
 }
 
-async function checkReplies(records) {
-  if (!Array.isArray(records)) {
-    throw new Error(
-      'Reply check requires a records array.'
-    );
+function createEmptySummary() {
+  return {
+    checked: 0,
+    repliesDetected: 0,
+    alreadyReplied: 0,
+    notReplied: 0,
+    skipped: 0,
+    failed: 0
+  };
+}
+
+function canCheckTracker(
+  tracker
+) {
+  if (
+    !tracker ||
+    typeof tracker !==
+      'object'
+  ) {
+    return false;
   }
 
-  const activeRecords =
-    records.filter(
-      isActiveRecord
-    );
+  if (!tracker.id) {
+    return false;
+  }
 
   if (
-    activeRecords.length === 0
+    !tracker.recipientEmail &&
+    !tracker.email
   ) {
-    console.log(
-      'No active follow-up records require reply checking.'
-    );
-
-    return [];
+    return false;
   }
 
-  const client =
-    await createImapClient();
+  if (
+    !tracker.initialMessageId
+  ) {
+    return false;
+  }
 
-  const detectedReplies = [];
+  if (
+    tracker.removed === true
+  ) {
+    return false;
+  }
 
-  let mailboxLock = null;
+  return true;
+}
 
+function mapDetectedReply(
+  tracker,
+  reply
+) {
+  return {
+    trackerId:
+      tracker.id,
+
+    recipientEmail:
+      tracker.recipientEmail ||
+      tracker.email ||
+      '',
+
+    initialMessageId:
+      tracker.initialMessageId ||
+      '',
+
+    replyMessageId:
+      reply.messageId ||
+      '',
+
+    replySubject:
+      reply.subject ||
+      '',
+
+    replyDate:
+      reply.date ||
+      null,
+
+    from:
+      reply.from ||
+      '',
+
+    uid:
+      reply.uid ||
+      null
+  };
+}
+
+function mapFailedCheck(
+  tracker,
+  error
+) {
+  return {
+    trackerId:
+      tracker?.id ||
+      '',
+
+    recipientEmail:
+      tracker
+        ?.recipientEmail ||
+      tracker?.email ||
+      '',
+
+    message:
+      error?.message ||
+      String(
+        error ||
+        'Unknown reply-check error.'
+      )
+  };
+}
+
+async function saveReplyCheckCompletedSafely(
+  userId,
+  trackerId
+) {
   try {
-    console.log(
-      'Connecting to Gmail inbox for reply detection...'
+    await markReplyCheckCompleted(
+      userId,
+      trackerId
     );
 
-    await client.connect();
-
-    mailboxLock =
-      await client.getMailboxLock(
-        'INBOX'
-      );
-
-    console.log(
-      `Checking replies for ${activeRecords.length} active record(s)`
-    );
-
-    for (
-      const record of activeRecords
-    ) {
-      console.log(
-        `Checking reply from ${record.email}`
-      );
-
-      const reply =
-        await findReplyForRecord(
-          client,
-          record
-        );
-
-      if (reply) {
-        detectedReplies.push(
-          reply
-        );
-
-        console.log(
-          `Reply detected from ${record.email}`
-        );
-      } else {
-        console.log(
-          `No reply detected from ${record.email}`
-        );
-      }
-    }
+    return true;
   } catch (error) {
     console.error(
-      'Gmail reply detection failed:',
+      `Unable to update reply-check timestamp for tracker ${trackerId}:`,
       error.message
     );
 
-    /*
-     * Rethrow the error.
-     *
-     * The follow-up service will stop instead
-     * of sending emails without verifying replies.
-     */
-    throw error;
-  } finally {
-    if (mailboxLock) {
-      mailboxLock.release();
-    }
+    return false;
+  }
+}
 
-    if (
-      client &&
-      client.usable
-    ) {
-      try {
-        await client.logout();
-      } catch (logoutError) {
-        console.log(
-          'Gmail logout warning:',
-          logoutError.message
-        );
-      }
-    }
+async function saveReplyErrorSafely(
+  userId,
+  trackerId,
+  errorMessage
+) {
+  try {
+    await setFollowUpError(
+      userId,
+      trackerId,
+      errorMessage
+    );
+
+    return true;
+  } catch (error) {
+    console.error(
+      `Unable to save reply-check error for tracker ${trackerId}:`,
+      error.message
+    );
+
+    return false;
+  }
+}
+
+async function processTrackerReply(
+  userId,
+  client,
+  tracker
+) {
+  if (
+    tracker.replyDetected ===
+    true
+  ) {
+    return {
+      status:
+        'ALREADY_REPLIED',
+
+      tracker,
+
+      reply:
+        null
+    };
   }
 
-  console.log(
-    `Reply detection completed. Replies found: ${detectedReplies.length}`
+  if (
+    !canCheckTracker(
+      tracker
+    )
+  ) {
+    return {
+      status:
+        'SKIPPED',
+
+      tracker,
+
+      reply:
+        null,
+
+      reason:
+        'Tracker is missing required reply-detection information or is removed.'
+    };
+  }
+
+  try {
+    const reply =
+      await findReplyForTracker(
+        client,
+        tracker
+      );
+
+    if (!reply) {
+      await saveReplyCheckCompletedSafely(
+        userId,
+        tracker.id
+      );
+
+      return {
+        status:
+          'NOT_REPLIED',
+
+        tracker,
+
+        reply:
+          null
+      };
+    }
+
+    const updatedTracker =
+      await markReplyDetected(
+        userId,
+        tracker.id,
+        {
+          replyMessageId:
+            reply.messageId ||
+            '',
+
+          replySubject:
+            reply.subject ||
+            '',
+
+          replyDate:
+            reply.date ||
+            new Date()
+              .toISOString()
+        }
+      );
+
+    return {
+      status:
+        'REPLY_DETECTED',
+
+      tracker:
+        updatedTracker,
+
+      reply
+    };
+  } catch (error) {
+    await saveReplyErrorSafely(
+      userId,
+      tracker.id,
+      error.message
+    );
+
+    return {
+      status:
+        'FAILED',
+
+      tracker,
+
+      reply:
+        null,
+
+      error
+    };
+  }
+}
+
+async function detectRepliesForUser(
+  userId,
+  options = {}
+) {
+  requireUserId(
+    userId
   );
 
-  return detectedReplies;
+  const summary =
+    createEmptySummary();
+
+  const detectedReplies = [];
+
+  const failedChecks = [];
+
+  const skippedRecords = [];
+
+  /*
+   * Include stopped records because a record
+   * may have been stopped manually but could
+   * still receive a reply.
+   *
+   * Removed records are not checked.
+   */
+  const trackers =
+    await getFollowUpRecords(
+      userId,
+      {
+        includeRemoved:
+          false,
+
+        includeStopped:
+          true,
+
+        limit:
+          options.limit ||
+          500
+      }
+    );
+
+  if (
+    !Array.isArray(
+      trackers
+    ) ||
+    trackers.length === 0
+  ) {
+    return {
+      source:
+        'GMAIL_AND_POSTGRESQL',
+
+      senderEmail:
+        '',
+
+      summary,
+
+      detectedReplies,
+
+      failedChecks,
+
+      skippedRecords,
+
+      message:
+        'No Follow-Up records are available for reply checking.'
+    };
+  }
+
+  const result =
+    await withGmailInbox(
+      userId,
+      async (
+        client,
+        context
+      ) => {
+        for (
+          const tracker of trackers
+        ) {
+          const trackerResult =
+            await processTrackerReply(
+              userId,
+              client,
+              tracker
+            );
+
+          switch (
+            trackerResult.status
+          ) {
+            case 'REPLY_DETECTED':
+              summary.checked +=
+                1;
+
+              summary.repliesDetected +=
+                1;
+
+              detectedReplies.push(
+                mapDetectedReply(
+                  tracker,
+                  trackerResult.reply
+                )
+              );
+
+              console.log(
+                `Reply detected for ${tracker.recipientEmail}`
+              );
+
+              break;
+
+            case 'NOT_REPLIED':
+              summary.checked +=
+                1;
+
+              summary.notReplied +=
+                1;
+
+              break;
+
+            case 'ALREADY_REPLIED':
+              summary.alreadyReplied +=
+                1;
+
+              break;
+
+            case 'SKIPPED':
+              summary.skipped +=
+                1;
+
+              skippedRecords.push({
+                trackerId:
+                  tracker.id,
+
+                recipientEmail:
+                  tracker.recipientEmail ||
+                  tracker.email ||
+                  '',
+
+                reason:
+                  trackerResult.reason ||
+                  'Record was not eligible for reply checking.'
+              });
+
+              break;
+
+            case 'FAILED':
+              summary.checked +=
+                1;
+
+              summary.failed +=
+                1;
+
+              failedChecks.push(
+                mapFailedCheck(
+                  tracker,
+                  trackerResult.error
+                )
+              );
+
+              break;
+
+            default:
+              summary.skipped +=
+                1;
+
+              skippedRecords.push({
+                trackerId:
+                  tracker.id,
+
+                recipientEmail:
+                  tracker.recipientEmail ||
+                  tracker.email ||
+                  '',
+
+                reason:
+                  `Unknown reply detection status: ${trackerResult.status}`
+              });
+
+              break;
+          }
+        }
+
+        return {
+          senderEmail:
+            context.senderEmail,
+
+          mailbox:
+            client
+              .mailbox
+              ?.path ||
+            'INBOX'
+        };
+      }
+    );
+
+  return {
+    source:
+      'GMAIL_AND_POSTGRESQL',
+
+    senderEmail:
+      result.senderEmail ||
+      '',
+
+    mailbox:
+      result.mailbox ||
+      'INBOX',
+
+    summary,
+
+    detectedReplies,
+
+    failedChecks,
+
+    skippedRecords,
+
+    message:
+      summary.repliesDetected > 0
+        ? (
+          `${summary.repliesDetected} reply/replies detected and updated successfully.`
+        )
+        : (
+          'Reply refresh completed. No new replies were detected.'
+        )
+  };
+}
+
+async function detectReplyForTracker(
+  userId,
+  trackerId
+) {
+  requireUserId(
+    userId
+  );
+
+  if (!trackerId) {
+    throw new Error(
+      'Follow-Up tracker ID is required.'
+    );
+  }
+
+  const trackers =
+    await getFollowUpRecords(
+      userId,
+      {
+        includeRemoved:
+          true,
+
+        includeStopped:
+          true,
+
+        limit:
+          500
+      }
+    );
+
+  const tracker =
+    trackers.find(
+      item => {
+        return (
+          item.id ===
+          trackerId
+        );
+      }
+    );
+
+  if (!tracker) {
+    throw new Error(
+      'Follow-Up record was not found.'
+    );
+  }
+
+  if (
+    tracker.removed === true
+  ) {
+    throw new Error(
+      'Removed Follow-Up records cannot be checked for replies.'
+    );
+  }
+
+  return withGmailInbox(
+    userId,
+    async client => {
+      const result =
+        await processTrackerReply(
+          userId,
+          client,
+          tracker
+        );
+
+      if (
+        result.status ===
+        'FAILED'
+      ) {
+        throw result.error;
+      }
+
+      return {
+        source:
+          'GMAIL_AND_POSTGRESQL',
+
+        status:
+          result.status,
+
+        replyDetected:
+          result.status ===
+          'REPLY_DETECTED' ||
+          result.status ===
+          'ALREADY_REPLIED',
+
+        tracker:
+          result.tracker,
+
+        reply:
+          result.reply
+      };
+    }
+  );
 }
 
 module.exports = {
-  checkReplies
+  createEmptySummary,
+  canCheckTracker,
+  mapDetectedReply,
+  mapFailedCheck,
+  processTrackerReply,
+  detectRepliesForUser,
+  detectReplyForTracker
 };
