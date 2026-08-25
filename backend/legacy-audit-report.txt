@@ -1,0 +1,396 @@
+LEGACY DEPENDENCY AUDIT
+=======================
+
+Generated: 2026-08-23T15:29:48.840Z
+Project root: C:\Users\10854042\OneDrive - LTM\Documents\email scheduler app\job-outreach-email-scheduler-framework\job-outreach-email-scheduler-framework
+Files scanned: 83
+Files with matches: 24
+
+CATEGORY SUMMARY
+----------------
+Legacy Shared Resume: 42
+Legacy Excel History: 17
+JSON File Parsing or Serialization: 14
+Direct File Read or Write: 10
+Legacy Template Storage: 8
+Legacy Sender Configuration: 4
+Legacy Sent Email Storage: 2
+Legacy Follow-Up Storage: 2
+Legacy Recipient Storage: 2
+
+DETAILED MATCHES
+----------------
+
+FILE: backend/src/controllers/upload.controller.js
+  [Legacy Shared Resume] Line 6
+    Pattern: resume_file
+    Code: RESUME_FILE
+  [Legacy Shared Resume] Line 7
+    Pattern: path.util
+    Code: } = require('../utils/path.util');
+  [Direct File Read or Write] Line 54
+    Pattern: readfilesync
+    Code: fs.readFileSync(
+  [Legacy Shared Resume] Line 302
+    Pattern: resume_file
+    Code: RESUME_FILE
+  [Direct File Read or Write] Line 305
+    Pattern: writefilesync
+    Code: fs.writeFileSync(
+  [Legacy Shared Resume] Line 306
+    Pattern: resume_file
+    Code: `${RESUME_FILE}.meta`,
+  [JSON File Parsing or Serialization] Line 307
+    Pattern: json.stringify
+    Code: JSON.stringify(
+  [Legacy Shared Resume] Line 385
+    Pattern: resume_file
+    Code: RESUME_FILE
+  [Legacy Shared Resume] Line 389
+    Pattern: resume_file
+    Code: RESUME_FILE
+  [Legacy Shared Resume] Line 395
+    Pattern: resume_file
+    Code: `${RESUME_FILE}.meta`
+  [Legacy Shared Resume] Line 399
+    Pattern: resume_file
+    Code: `${RESUME_FILE}.meta`
+  [Legacy Shared Resume] Line 438
+    Pattern: resume_file
+    Code: RESUME_FILE
+  [Legacy Shared Resume] Line 443
+    Pattern: resume_file
+    Code: `${RESUME_FILE}.meta`
+  [JSON File Parsing or Serialization] Line 456
+    Pattern: json.parse
+    Code: JSON.parse(
+  [Direct File Read or Write] Line 457
+    Pattern: readfilesync
+    Code: fs.readFileSync(
+  [Legacy Shared Resume] Line 458
+    Pattern: resume_file
+    Code: `${RESUME_FILE}.meta`,
+
+FILE: backend/src/data/email_template.json
+  [Legacy Shared Resume] Line 9
+    Pattern: resumefile
+    Code: "resumeFileName": " ",
+
+FILE: backend/src/routes/config.routes.js
+  [Legacy Sender Configuration] Line 6
+    Pattern: config.controller
+    Code: } = require('../controllers/config.controller');
+
+FILE: backend/src/routes/databaseTemplate.routes.js
+  [Legacy Template Storage] Line 8
+    Pattern: template.controller
+    Code: '../controllers/databaseTemplate.controller'
+
+FILE: backend/src/routes/resume.routes.js
+  [Legacy Shared Resume] Line 44
+    Pattern: resumefile
+    Code: function resumeFileFilter(
+  [Legacy Shared Resume] Line 96
+    Pattern: resumefile
+    Code: resumeFileFilter
+
+FILE: backend/src/routes/template.routes.js
+  [Legacy Template Storage] Line 1
+    Pattern: template.controller
+    Code: const express = require('express'); const { getTemplate, updateTemplate } = require('../controllers/template.controller'); const router = express.Router(); router.get('/', getTemplate); router.post('/', updateTemplate); module.exports = router;
+
+FILE: backend/src/routes/upload.routes.js
+  [Legacy Shared Resume] Line 15
+    Pattern: path.util
+    Code: } = require('../utils/path.util');
+  [Legacy Shared Resume] Line 110
+    Pattern: /upload/resume
+    Code: * POST /api/upload/resume
+  [Legacy Shared Resume] Line 110
+    Pattern: upload/resume
+    Code: * POST /api/upload/resume
+  [Legacy Shared Resume] Line 130
+    Pattern: /upload/resume
+    Code: * DELETE /api/upload/resume
+  [Legacy Shared Resume] Line 130
+    Pattern: upload/resume
+    Code: * DELETE /api/upload/resume
+  [Legacy Shared Resume] Line 141
+    Pattern: /upload/resume
+    Code: * GET /api/upload/resume/status
+  [Legacy Shared Resume] Line 141
+    Pattern: /upload/resume/status
+    Code: * GET /api/upload/resume/status
+  [Legacy Shared Resume] Line 141
+    Pattern: upload/resume
+    Code: * GET /api/upload/resume/status
+
+FILE: backend/src/server.js
+  [Legacy Sender Configuration] Line 35
+    Pattern: config.routes
+    Code: require('./routes/config.routes');
+  [Legacy Template Storage] Line 44
+    Pattern: template.routes
+    Code: require('./routes/template.routes');
+  [Legacy Template Storage] Line 48
+    Pattern: template.routes
+    Code: './routes/databaseTemplate.routes'
+  [Legacy Sender Configuration] Line 280
+    Pattern: /api/config
+    Code: '/api/config',
+  [Legacy Template Storage] Line 317
+    Pattern: /api/template
+    Code: '/api/template',
+
+FILE: backend/src/services/followup.service.js
+  [Legacy Shared Resume] Line 5
+    Pattern: path.util
+    Code: } = require('../utils/path.util');
+
+FILE: backend/src/services/history.service.js
+  [Legacy Excel History] Line 2
+    Pattern: exceljs
+    Code: const ExcelJS = require('exceljs');
+  [Legacy Shared Resume] Line 6
+    Pattern: path.util
+    Code: } = require('../utils/path.util');
+  [Legacy Excel History] Line 44
+    Pattern: workbook
+    Code: const workbook =
+  [Legacy Excel History] Line 45
+    Pattern: exceljs
+    Code: new ExcelJS.Workbook();
+  [Legacy Excel History] Line 45
+    Pattern: workbook
+    Code: new ExcelJS.Workbook();
+  [Legacy Excel History] Line 54
+    Pattern: .xlsx
+    Code: await workbook.xlsx.readFile(
+  [Legacy Excel History] Line 54
+    Pattern: xlsx
+    Code: await workbook.xlsx.readFile(
+  [Legacy Excel History] Line 54
+    Pattern: workbook
+    Code: await workbook.xlsx.readFile(
+  [Direct File Read or Write] Line 54
+    Pattern: readfile(
+    Code: await workbook.xlsx.readFile(
+  [Legacy Excel History] Line 59
+    Pattern: workbook
+    Code: workbook.getWorksheet(
+  [Legacy Excel History] Line 66
+    Pattern: workbook
+    Code: workbook.addWorksheet(
+  [Legacy Excel History] Line 74
+    Pattern: workbook
+    Code: * If workbook already has the new column
+  [Legacy Excel History] Line 140
+    Pattern: workbook
+    Code: * workbook structure.
+  [Legacy Excel History] Line 160
+    Pattern: .xlsx
+    Code: await workbook.xlsx.writeFile(
+  [Legacy Excel History] Line 160
+    Pattern: xlsx
+    Code: await workbook.xlsx.writeFile(
+  [Legacy Excel History] Line 160
+    Pattern: workbook
+    Code: await workbook.xlsx.writeFile(
+  [Direct File Read or Write] Line 160
+    Pattern: writefile(
+    Code: await workbook.xlsx.writeFile(
+
+FILE: backend/src/services/resumeAttachment.service.js
+  [Legacy Shared Resume] Line 2
+    Pattern: resumefile
+    Code: getActiveResumeFile
+  [Legacy Shared Resume] Line 180
+    Pattern: resumefile
+    Code: await getActiveResumeFile(
+
+FILE: backend/src/services/resumeStorage.service.js
+  [Legacy Shared Resume] Line 169
+    Pattern: resumefile
+    Code: function validateResumeFile({
+  [Legacy Shared Resume] Line 587
+    Pattern: resumefile
+    Code: async function getActiveResumeFile(
+  [Legacy Shared Resume] Line 705
+    Pattern: resumefile
+    Code: validateResumeFile({
+  [Direct File Read or Write] Line 766
+    Pattern: writefile(
+    Code: await fsPromises.writeFile(
+  [Legacy Shared Resume] Line 997
+    Pattern: resumefile
+    Code: async function cleanupInactiveResumeFiles(
+  [Legacy Shared Resume] Line 1285
+    Pattern: resumefile
+    Code: validateResumeFile,
+  [Legacy Shared Resume] Line 1297
+    Pattern: resumefile
+    Code: getActiveResumeFile,
+  [Legacy Shared Resume] Line 1302
+    Pattern: resumefile
+    Code: cleanupInactiveResumeFiles,
+
+FILE: backend/src/services/scheduler.service.js
+  [Legacy Sent Email Storage] Line 354
+    Pattern: sent_emails.json
+    Code: * This replaces sent_emails.json.
+  [Legacy Follow-Up Storage] Line 411
+    Pattern: followup_tracker.json
+    Code: * This replaces followup_tracker.json.
+
+FILE: backend/src/services/senderConfig.service.js
+  [Legacy Shared Resume] Line 3
+    Pattern: path.util
+    Code: const { DATA_DIR } = require('../utils/path.util');
+  [Legacy Sender Configuration] Line 5
+    Pattern: sender_config.json
+    Code: const SENDER_CONFIG_FILE = path.join(DATA_DIR, 'sender_config.json');
+
+FILE: backend/src/services/template.service.js
+  [Legacy Shared Resume] Line 5
+    Pattern: path.util
+    Code: } = require('../utils/path.util');
+  [Legacy Shared Resume] Line 73
+    Pattern: resumefile
+    Code: resumeFileName:
+
+FILE: backend/src/utils/file.util.js
+  [Direct File Read or Write] Line 4
+    Pattern: readfilesync
+    Code: function readJson(filePath, fallbackValue) { if (!fs.existsSync(filePath)) return fallbackValue; const content = fs.readFileSync(filePath, 'utf-8'); if (!content.trim()) return fallbackValue; return JSON.parse(content); }
+  [JSON File Parsing or Serialization] Line 4
+    Pattern: json.parse
+    Code: function readJson(filePath, fallbackValue) { if (!fs.existsSync(filePath)) return fallbackValue; const content = fs.readFileSync(filePath, 'utf-8'); if (!content.trim()) return fallbackValue; return JSON.parse(content); }
+  [Direct File Read or Write] Line 5
+    Pattern: writefilesync
+    Code: function writeJson(filePath, value) { ensureDir(path.dirname(filePath)); fs.writeFileSync(filePath, JSON.stringify(value, null, 2)); }
+  [JSON File Parsing or Serialization] Line 5
+    Pattern: json.stringify
+    Code: function writeJson(filePath, value) { ensureDir(path.dirname(filePath)); fs.writeFileSync(filePath, JSON.stringify(value, null, 2)); }
+  [Direct File Read or Write] Line 6
+    Pattern: readfilesync
+    Code: function readTextLines(filePath) { if (!fs.existsSync(filePath)) return []; return fs.readFileSync(filePath, 'utf-8').split(/\r?\n/).map(item => item.trim()).filter(Boolean); }
+  [Direct File Read or Write] Line 7
+    Pattern: writefilesync
+    Code: function writeText(filePath, content) { ensureDir(path.dirname(filePath)); fs.writeFileSync(filePath, content); }
+
+FILE: backend/src/utils/path.util.js
+  [Legacy Recipient Storage] Line 21
+    Pattern: extracted_emails.txt
+    Code: 'extracted_emails.txt'
+  [Legacy Recipient Storage] Line 21
+    Pattern: emails.txt
+    Code: 'extracted_emails.txt'
+  [Legacy Sent Email Storage] Line 26
+    Pattern: sent_emails.json
+    Code: 'sent_emails.json'
+  [Legacy Follow-Up Storage] Line 31
+    Pattern: followup_tracker.json
+    Code: 'followup_tracker.json'
+  [Legacy Excel History] Line 36
+    Pattern: send_history.xlsx
+    Code: 'send_history.xlsx'
+  [Legacy Excel History] Line 36
+    Pattern: .xlsx
+    Code: 'send_history.xlsx'
+  [Legacy Excel History] Line 36
+    Pattern: xlsx
+    Code: 'send_history.xlsx'
+  [Legacy Template Storage] Line 41
+    Pattern: email_template.json
+    Code: 'email_template.json'
+  [Legacy Shared Resume] Line 44
+    Pattern: resume_file
+    Code: RESUME_FILE: path.join(
+
+FILE: frontend/src/App.jsx
+  [Legacy Template Storage] Line 87
+    Pattern: "/template"
+    Code: to="/template"
+  [Legacy Template Storage] Line 164
+    Pattern: "/template"
+    Code: path="/template"
+
+FILE: frontend/src/components/ResumeManager.jsx
+  [Legacy Shared Resume] Line 62
+    Pattern: resumefile
+    Code: function validateResumeFile(
+  [Legacy Shared Resume] Line 366
+    Pattern: resumefile
+    Code: validateResumeFile(
+  [Legacy Shared Resume] Line 400
+    Pattern: resumefile
+    Code: validateResumeFile(
+
+FILE: frontend/src/context/AuthContext.jsx
+  [JSON File Parsing or Serialization] Line 111
+    Pattern: json.stringify
+    Code: body: JSON.stringify({
+  [JSON File Parsing or Serialization] Line 151
+    Pattern: json.stringify
+    Code: body: JSON.stringify({
+
+FILE: frontend/src/pages/FollowUps.jsx
+  [JSON File Parsing or Serialization] Line 372
+    Pattern: json.stringify
+    Code: JSON.stringify(template) !==
+  [JSON File Parsing or Serialization] Line 373
+    Pattern: json.stringify
+    Code: JSON.stringify(
+
+FILE: frontend/src/pages/Template.jsx
+  [JSON File Parsing or Serialization] Line 492
+    Pattern: json.stringify
+    Code: JSON.stringify(template) !==
+  [JSON File Parsing or Serialization] Line 493
+    Pattern: json.stringify
+    Code: JSON.stringify(
+
+FILE: frontend/src/pages/UploadEmails.jsx
+  [Legacy Shared Resume] Line 903
+    Pattern: /upload/resume
+    Code: * /api/upload/resume workflow.
+  [Legacy Shared Resume] Line 903
+    Pattern: upload/resume
+    Code: * /api/upload/resume workflow.
+
+FILE: frontend/src/services/api.js
+  [JSON File Parsing or Serialization] Line 183
+    Pattern: json.stringify
+    Code: : JSON.stringify(body)
+  [JSON File Parsing or Serialization] Line 208
+    Pattern: json.stringify
+    Code: : JSON.stringify(body)
+  [JSON File Parsing or Serialization] Line 233
+    Pattern: json.stringify
+    Code: : JSON.stringify(body)
+  [JSON File Parsing or Serialization] Line 253
+    Pattern: json.stringify
+    Code: : JSON.stringify(body)
+
+INTERPRETATION
+--------------
+
+Review every match before deleting old code.
+
+Safe persistent targets:
+  Users -> PostgreSQL
+  SenderAccount -> PostgreSQL
+  EmailTemplate -> PostgreSQL
+  Recipient -> PostgreSQL
+  SentEmail -> PostgreSQL
+  EmailHistory -> PostgreSQL
+  FollowUpTracker -> PostgreSQL
+  Resume metadata -> PostgreSQL
+  Resume physical file -> private per-user directory
+
+Runtime-only state currently remaining:
+  Initial scheduler state -> in-memory Map
+  Follow-Up batch state -> in-memory Map
+
+Do not delete a legacy route until the report confirms
+that no frontend or backend caller still references it.

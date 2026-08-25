@@ -1,5 +1,22 @@
-node_modules
+# Dependencies
+node_modules/
+
+# Env files
 .env
+.env.*
+
+# Old files
 src/data/uploads/*
 src/data/sent_emails.json
 src/data/send_history.xlsx
+
+# User uploaded data
+src/data/private/
+src/data/private/resumes/
+
+# Logs
+logs/
+*.log
+
+# Backup files
+*.backup.js

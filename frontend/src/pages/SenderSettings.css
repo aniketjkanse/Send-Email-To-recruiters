@@ -1,0 +1,233 @@
+.sender-settings-page {
+  width: 100%;
+  padding: 30px;
+  box-sizing: border-box;
+}
+
+.sender-settings-card {
+  width: 100%;
+  max-width: 900px;
+  padding: 30px;
+  box-sizing: border-box;
+  background: #ffffff;
+  border: 1px solid #dce4ef;
+  border-radius: 16px;
+  box-shadow:
+    0 10px 30px
+    rgba(15, 39, 73, 0.07);
+}
+
+.sender-settings-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.sender-settings-header h1 {
+  margin: 0 0 8px;
+  color: #0b1f3a;
+  font-size: 32px;
+}
+
+.sender-settings-header p {
+  max-width: 650px;
+  margin: 0;
+  color: #64748b;
+  line-height: 1.6;
+}
+
+.sender-status {
+  flex: 0 0 auto;
+  padding: 7px 13px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.sender-status-configured {
+  color: #17653a;
+  background: #e9f8ef;
+  border: 1px solid #bce3ca;
+}
+
+.sender-status-missing {
+  color: #8a5a00;
+  background: #fff4d8;
+  border: 1px solid #efd58d;
+}
+
+.sender-settings-section {
+  padding: 26px 0;
+}
+
+.sender-settings-section h2 {
+  margin: 0 0 21px;
+  color: #102747;
+  font-size: 21px;
+}
+
+.sender-field {
+  display: block;
+  margin-bottom: 20px;
+}
+
+.sender-field > span {
+  display: block;
+  margin-bottom: 8px;
+  color: #1b2f4b;
+  font-size: 14px;
+  font-weight: 750;
+}
+
+.sender-field input,
+.sender-field select {
+  display: block;
+  width: 100%;
+  padding: 13px 14px;
+  box-sizing: border-box;
+  color: #172b4d;
+  background: #ffffff;
+  border: 1px solid #bdc9d9;
+  border-radius: 9px;
+  font: inherit;
+}
+
+.sender-field input:focus,
+.sender-field select:focus {
+  outline: none;
+  border-color: #1769c2;
+  box-shadow:
+    0 0 0 3px
+    rgba(23, 105, 194, 0.12);
+}
+
+.sender-field small {
+  display: block;
+  margin-top: 7px;
+  color: #728197;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.sender-active-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 17px;
+  cursor: pointer;
+  background: #f7f9fc;
+  border: 1px solid #dce4ef;
+  border-radius: 11px;
+}
+
+.sender-active-option input {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  margin: 2px 0 0;
+  accent-color: #1769c2;
+}
+
+.sender-active-option div {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.sender-active-option strong {
+  color: #172b4d;
+  font-size: 14px;
+}
+
+.sender-active-option span {
+  color: #6b7a90;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.sender-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 11px;
+  padding-top: 24px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.sender-button {
+  min-width: 170px;
+  padding: 12px 18px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.sender-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.sender-button-primary {
+  color: #ffffff;
+  background: #1769c2;
+  border: 1px solid #1769c2;
+}
+
+.sender-button-secondary {
+  color: #34506f;
+  background: #ffffff;
+  border: 1px solid #bdc9d9;
+}
+
+.sender-button-danger {
+  color: #a1172b;
+  background: #fff4f5;
+  border: 1px solid #edb8c0;
+}
+
+.sender-message {
+  padding: 13px 15px;
+  margin-top: 20px;
+  border-radius: 9px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.sender-message-success {
+  color: #17653a;
+  background: #eaf8f0;
+  border: 1px solid #b7dfc5;
+}
+
+.sender-message-error {
+  color: #a21628;
+  background: #fff0f2;
+  border: 1px solid #f2bac2;
+}
+
+@media (
+  max-width: 650px
+) {
+  .sender-settings-page {
+    padding: 16px;
+  }
+
+  .sender-settings-card {
+    padding: 20px;
+  }
+
+  .sender-settings-header {
+    flex-direction: column;
+  }
+
+  .sender-actions {
+    flex-direction: column;
+  }
+
+  .sender-button {
+    width: 100%;
+  }
+}

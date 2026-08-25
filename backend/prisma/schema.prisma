@@ -1,0 +1,195 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  name         String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  templates        EmailTemplate[]
+  senderAccount    SenderAccount?
+  recipients       Recipient[]
+  sentEmails       SentEmail[]
+  emailHistory     EmailHistory[]
+  followUpTrackers FollowUpTracker[]
+  resumes          Resume[]
+}
+
+model EmailTemplate {
+  id                  String   @id @default(uuid())
+  userId              String
+  subject             String
+  body                String
+  followUp1Body       String?
+  followUp2Body       String?
+  dailyLimit          Int      @default(100)
+  followUp1DailyLimit Int      @default(25)
+  followUp2DailyLimit Int      @default(15)
+  followUp1DelayDays  Int      @default(0)
+  followUp2DelayDays  Int      @default(0)
+  minDelaySeconds     Int      @default(180)
+  maxDelaySeconds     Int      @default(420)
+  skipPersonalEmails  Boolean  @default(true)
+  dryRun              Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model SenderAccount {
+  id                String   @id @default(uuid())
+  userId            String   @unique
+  provider          String   @default("gmail")
+  emailAddress      String
+  encryptedPassword String
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([emailAddress])
+}
+
+model Recipient {
+  id            String   @id @default(uuid())
+  userId        String
+  email         String
+  source        String?
+  originalFile  String?
+  uploadBatchId String?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, email])
+  @@index([userId])
+  @@index([userId, uploadBatchId])
+  @@index([createdAt])
+}
+
+model SentEmail {
+  id             String   @id @default(uuid())
+  userId         String
+  recipientEmail String
+  senderEmail    String?
+  subject        String
+  messageId      String?
+  status         String   @default("SENT")
+  emailType      String   @default("INITIAL")
+  sentAt         DateTime @default(now())
+  createdAt      DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, recipientEmail, emailType])
+  @@index([userId])
+  @@index([userId, sentAt])
+  @@index([messageId])
+}
+
+model EmailHistory {
+  id             String   @id @default(uuid())
+  userId         String
+  recipientEmail String
+  senderEmail    String?
+  subject        String?
+  messageId      String?
+  emailType      String   @default("INITIAL")
+  status         String
+  reason         String?
+  sentAt         DateTime
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, sentAt])
+  @@index([userId, status])
+  @@index([userId, emailType])
+  @@index([recipientEmail])
+}
+
+model FollowUpTracker {
+  id             String  @id @default(uuid())
+  userId         String
+  recipientEmail String
+  senderEmail    String?
+  subject        String
+
+  initialMessageId String
+  initialSentAt    DateTime
+
+  followUp1MessageId String?
+  followUp1SentAt    DateTime?
+
+  followUp2MessageId String?
+  followUp2SentAt    DateTime?
+
+  replyDetected  Boolean   @default(false)
+  replyMessageId String?
+  replySubject   String?
+  replyDate      DateTime?
+
+  status String @default("INITIAL_SENT")
+
+  removed       Boolean   @default(false)
+  removedAt     DateTime?
+  removedReason String?
+
+  stopped       Boolean   @default(false)
+  stoppedAt     DateTime?
+  stoppedReason String?
+
+  lastError     String?
+  lastCheckedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, recipientEmail])
+  @@index([userId])
+  @@index([userId, status])
+  @@index([userId, initialSentAt])
+  @@index([userId, followUp1SentAt])
+  @@index([userId, followUp2SentAt])
+  @@index([userId, replyDetected])
+  @@index([initialMessageId])
+}
+
+model Resume {
+  id           String   @id @default(uuid())
+  userId       String
+  originalName String
+  storedName   String
+  storagePath  String
+  mimeType     String
+  fileSize     Int
+  isActive     Boolean  @default(true)
+  uploadedAt   DateTime @default(now())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, isActive])
+  @@index([userId, uploadedAt])
+}
