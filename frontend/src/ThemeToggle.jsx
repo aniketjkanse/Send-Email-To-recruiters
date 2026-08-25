@@ -37,11 +37,11 @@ function ThemeToggle() {
       type="button"
       title={isLight ? 'Switch to dark mode' : 'Switch to light mode'}
       onClick={toggle}
-      className="group relative flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--panel)] text-[var(--text)] backdrop-blur-xl transition-all hover:border-accent hover:shadow-glow active:scale-95"
+      className="theme-toggle-btn"
     >
       <span
-        className="material-symbols-outlined transition-transform duration-500"
-        style={{ transform: isLight ? 'rotate(0deg)' : 'rotate(180deg)' }}
+        className="material-symbols-outlined"
+        style={{ transform: isLight ? 'rotate(0deg)' : 'rotate(180deg)', color: 'var(--text)' }}
       >
         {isLight ? 'light_mode' : 'dark_mode'}
       </span>

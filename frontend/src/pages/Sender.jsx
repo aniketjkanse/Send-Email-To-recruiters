@@ -1,18 +1,21 @@
 import { useEffect, useState } from 'react';
 import { api } from '../services/api';
 import { useToast } from '../ToastContext.jsx';
+import { useSchedulerStatusToast } from '../schedulerStatus.js';
 
 const STATUS_META = {
   RUNNING: { label: 'Running', dot: 'bg-emerald-500', text: 'text-emerald-500' },
   STOPPING: { label: 'Stopping', dot: 'bg-amber-500', text: 'text-amber-500' },
   STOPPED: { label: 'Stopped', dot: 'bg-slate-400', text: 'text-slate-400' },
   COMPLETED: { label: 'Completed', dot: 'bg-accent', text: 'text-accent' },
+  ERROR: { label: 'Error', dot: 'bg-red-500', text: 'text-red-500' },
   IDLE: { label: 'Idle', dot: 'bg-[var(--muted)]', text: 'text-[var(--muted)]' }
 };
 
 function Sender() {
   const [status, setStatus] = useState(null);
   const notify = useToast();
+  useSchedulerStatusToast(status);
 
   async function load() {
     const response = await api.get('/send/status');

@@ -41,6 +41,24 @@ let schedulerState = {
   stopRequested: false
 };
 
+/*
+ * Some failures are not worth retrying — a missing sender config, for
+ * example, will fail identically for every remaining email. Retrying
+ * those with long delays just burns through the whole batch producing
+ * a wall of duplicate FAILED history rows. Stop immediately instead.
+ */
+const NON_RETRYABLE_ERROR_PATTERNS = [
+  'Gmail sender email or app password is missing',
+  'Invalid login',
+  'Username and Password not accepted',
+  'invalid_grant'
+];
+
+function isNonRetryableError(error) {
+  const message = String(error && error.message || '');
+  return NON_RETRYABLE_ERROR_PATTERNS.some(pattern => message.includes(pattern));
+}
+
 function getRandomDelay(
   minSeconds,
   maxSeconds
@@ -530,8 +548,6 @@ async function runScheduler() {
         );
       }
     } catch (error) {
-      continuousFailureCount += 1;
-      totalFailureCount += 1;
       schedulerState.failed += 1;
 
       const failureTime =
@@ -561,6 +577,22 @@ async function runScheduler() {
             'INITIAL'
         }
       ]);
+
+      if (isNonRetryableError(error)) {
+        schedulerState.status = 'ERROR';
+
+        schedulerState.message =
+          `Scheduler stopped: ${error.message} Fix Sender Settings and try again.`;
+
+        console.log(
+          schedulerState.message
+        );
+
+        break;
+      }
+
+      continuousFailureCount += 1;
+      totalFailureCount += 1;
 
       if (
         continuousFailureCount >=
@@ -626,25 +658,27 @@ async function runScheduler() {
     }
   }
 
-  schedulerState.status =
-    schedulerState.stopRequested
-      ? 'STOPPED'
-      : 'COMPLETED';
+  if (schedulerState.status !== 'ERROR') {
+    schedulerState.status =
+      schedulerState.stopRequested
+        ? 'STOPPED'
+        : 'COMPLETED';
+
+    if (schedulerState.stopRequested) {
+      schedulerState.message =
+        'Scheduler stopped safely';
+    } else {
+      schedulerState.message =
+        `Scheduler completed. Sent: ${schedulerState.sent}, ` +
+        `Failed: ${schedulerState.failed}, ` +
+        `Skipped: ${schedulerState.skipped}`;
+    }
+  }
 
   schedulerState.currentEmail = '';
 
   schedulerState.completedAt =
     new Date().toISOString();
-
-  if (schedulerState.stopRequested) {
-    schedulerState.message =
-      'Scheduler stopped safely';
-  } else {
-    schedulerState.message =
-      `Scheduler completed. Sent: ${schedulerState.sent}, ` +
-      `Failed: ${schedulerState.failed}, ` +
-      `Skipped: ${schedulerState.skipped}`;
-  }
 
   console.log(
     '=================================='

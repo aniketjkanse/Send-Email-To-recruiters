@@ -797,7 +797,7 @@ function FollowUps() {
 
                         <button
                           type="button"
-                          className="danger-button"
+                          className="followup-danger-button"
                           disabled={
                             loading ||
                             selectedInFolder ===

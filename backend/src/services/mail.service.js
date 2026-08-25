@@ -29,20 +29,48 @@ function getGmailCredentials() {
   const senderConfig =
     readSenderConfig();
 
-  return {
-    emailUser:
-      normalizeGmailAddress(
-        senderConfig.emailUser ||
-        process.env.EMAIL_USER
-      ),
+  const accounts = [
+    {
+      emailUser:
+        normalizeGmailAddress(
+          senderConfig.emailUser ||
+          process.env.EMAIL_USER
+        ),
 
-    emailPass:
-      String(
-        senderConfig.emailPass ||
-        process.env.EMAIL_PASS ||
-        ''
-      ).trim()
-  };
+      emailPass:
+        String(
+          senderConfig.emailPass ||
+          process.env.EMAIL_PASS ||
+          ''
+        ).trim()
+    }
+  ];
+
+  /*
+   * The second account is optional. When both an
+   * address and password are saved for it, it becomes
+   * eligible for random selection alongside the first.
+   */
+  if (senderConfig.emailUser2 && senderConfig.emailPass2) {
+    accounts.push({
+      emailUser:
+        normalizeGmailAddress(
+          senderConfig.emailUser2
+        ),
+
+      emailPass:
+        String(
+          senderConfig.emailPass2
+        ).trim()
+    });
+  }
+
+  const chosenIndex =
+    accounts.length > 1
+      ? Math.floor(Math.random() * accounts.length)
+      : 0;
+
+  return accounts[chosenIndex];
 }
 
 function createGmailTransporter(

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '../services/api';
+import { useToast } from '../ToastContext.jsx';
 
 const PAGE_SIZE = 15;
 
@@ -20,10 +21,17 @@ function ActivityLog() {
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [page, setPage] = useState(1);
 
+  const notify = useToast();
+
   async function load() {
-    const res = await api.get('/history');
-    setRecords(res.data.records || []);
-    setLoading(false);
+    try {
+      const res = await api.get('/history');
+      setRecords(res.data.records || []);
+    } catch (err) {
+      notify(err.response?.data?.message || 'Failed to load activity log', 'error');
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {

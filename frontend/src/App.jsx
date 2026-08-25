@@ -109,8 +109,8 @@ function App() {
               JO
             </div>
             <div>
-              <div className="text-sm font-bold tracking-tight text-[var(--text)]">Job Outreach</div>
-              <div className="text-xs text-[var(--muted)]">Email Scheduler</div>
+              <div className="text-sm font-bold tracking-tight text-[var(--sidebar-text)]">Job Outreach</div>
+              <div className="text-xs text-[var(--sidebar-muted)]">Email Scheduler</div>
             </div>
           </div>
 
@@ -121,24 +121,15 @@ function App() {
                 to={item.to}
                 end={item.end}
                 className={({ isActive }) =>
-                  `relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all ${
-                    isActive
-                      ? 'border border-accent/30 bg-accent/10 text-accent'
-                      : 'border border-transparent text-[var(--muted)] hover:bg-[var(--border)] hover:text-[var(--text)]'
+                  `nav-pill flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-all ${
+                    isActive ? 'nav-pill-active' : 'text-[var(--sidebar-text)] hover:bg-[var(--border)]'
                   }`
                 }
               >
-                {({ isActive }) => (
-                  <>
-                    {isActive && (
-                      <span className="absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-gradient-to-b from-accent to-accent-dark" />
-                    )}
-                    <span className="material-symbols-outlined" style={{ fontSize: 19 }}>
-                      {item.icon}
-                    </span>
-                    {item.label}
-                  </>
-                )}
+                <span className="material-symbols-outlined" style={{ fontSize: 19 }}>
+                  {item.icon}
+                </span>
+                {item.label}
               </NavLink>
             ))}
           </nav>
