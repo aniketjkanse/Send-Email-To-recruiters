@@ -1,0 +1,532 @@
+const fs =
+  require('fs');
+
+const {
+  EXTRACTED_EMAILS_FILE,
+  RESUME_FILE
+} = require('../utils/path.util');
+
+const {
+  saveUploadedRecipients
+} = require(
+  '../services/recipientUpload.service'
+);
+
+/*
+ * Safely delete the temporary Multer file.
+ */
+function deleteTemporaryFile(
+  filePath
+) {
+  if (
+    filePath &&
+    fs.existsSync(filePath)
+  ) {
+    fs.unlinkSync(filePath);
+  }
+}
+
+/*
+ * Read email addresses from the uploaded
+ * text file.
+ *
+ * Supported formats:
+ *
+ * email1@company.com
+ * email2@company.com
+ *
+ * Also supports comma or semicolon
+ * separated values.
+ */
+function extractEmailsFromTextFile(
+  filePath
+) {
+  if (
+    !filePath ||
+    !fs.existsSync(filePath)
+  ) {
+    throw new Error(
+      'Uploaded email file was not found.'
+    );
+  }
+
+  const fileContent =
+    fs.readFileSync(
+      filePath,
+      'utf8'
+    );
+
+  return fileContent
+    .split(
+      /[\r\n,;]+/
+    )
+    .map(value => {
+      return String(
+        value || ''
+      ).trim();
+    })
+    .filter(Boolean);
+}
+
+/*
+ * Upload and store recipient emails.
+ *
+ * The existing local file is preserved
+ * temporarily for backward compatibility.
+ *
+ * PostgreSQL Recipient storage is now the
+ * primary storage for Preview and Scheduler.
+ */
+async function uploadEmails(
+  req,
+  res
+) {
+  let temporaryFilePath = '';
+
+  try {
+    if (!req.file) {
+      return res
+        .status(400)
+        .json({
+          message:
+            'Emails file is required.'
+        });
+    }
+
+    if (
+      !req.user ||
+      !req.user.id
+    ) {
+      return res
+        .status(401)
+        .json({
+          message:
+            'Authenticated user is required.'
+        });
+    }
+
+    temporaryFilePath =
+      req.file.path;
+
+    /*
+     * Extract emails before deleting the
+     * temporary Multer file.
+     */
+    const extractedEmails =
+      extractEmailsFromTextFile(
+        temporaryFilePath
+      );
+
+    if (
+      extractedEmails.length === 0
+    ) {
+      deleteTemporaryFile(
+        temporaryFilePath
+      );
+
+      temporaryFilePath = '';
+
+      return res
+        .status(400)
+        .json({
+          message:
+            'No email addresses were found in the uploaded file.'
+        });
+    }
+
+    /*
+     * Save recipients in PostgreSQL using
+     * the authenticated user's ID.
+     *
+     * Default mode is REPLACE:
+     * the user's previous recipient list is
+     * replaced by this uploaded list.
+     *
+     * APPEND keeps existing recipients and
+     * inserts only new addresses.
+     */
+    const databaseResult =
+      await saveUploadedRecipients(
+        req.user.id,
+        extractedEmails,
+        {
+          mode:
+            req.body?.mode ||
+            'REPLACE',
+
+          source:
+            'FILE_UPLOAD',
+
+          originalFile:
+            req.file.originalname ||
+            ''
+        }
+      );
+
+    /*
+     * Keep the old extracted email file for
+     * temporary backward compatibility.
+     *
+     * Preview and Scheduler should now use
+     * PostgreSQL, not this file.
+     */
+    fs.copyFileSync(
+      temporaryFilePath,
+      EXTRACTED_EMAILS_FILE
+    );
+
+    deleteTemporaryFile(
+      temporaryFilePath
+    );
+
+    temporaryFilePath = '';
+
+    return res.json({
+      message:
+        'Emails uploaded and recipients saved successfully.',
+
+      source:
+        'POSTGRESQL',
+
+      file: {
+        originalName:
+          req.file.originalname ||
+          '',
+
+        size:
+          req.file.size ||
+          0,
+
+        mimeType:
+          req.file.mimetype ||
+          ''
+      },
+
+      recipients: {
+        uploadBatchId:
+          databaseResult
+            .uploadBatchId,
+
+        totalInput:
+          databaseResult
+            .totalInput,
+
+        validCount:
+          databaseResult
+            .validCount,
+
+        insertedCount:
+          databaseResult
+            .insertedCount,
+
+        duplicateCount:
+          databaseResult
+            .duplicateCount,
+
+        invalidCount:
+          databaseResult
+            .invalidCount,
+
+        validEmails:
+          databaseResult
+            .validEmails ||
+          [],
+
+        invalidEmails:
+          databaseResult
+            .invalidEmails ||
+          []
+      }
+    });
+  } catch (error) {
+    console.error(
+      'Email upload failed:',
+      error
+    );
+
+    /*
+     * Ensure temporary files do not remain
+     * after a failed upload.
+     */
+    try {
+      deleteTemporaryFile(
+        temporaryFilePath
+      );
+    } catch (
+      cleanupError
+    ) {
+      console.error(
+        'Unable to remove temporary email file:',
+        cleanupError.message
+      );
+    }
+
+    return res
+      .status(400)
+      .json({
+        message:
+          error.message ||
+          'Unable to process uploaded email file.'
+      });
+  }
+}
+
+/*
+ * Resume upload remains local and shared
+ * during this migration phase.
+ *
+ * A future migration will store resumes
+ * per user in object storage.
+ */
+function uploadResume(
+  req,
+  res
+) {
+  let temporaryFilePath = '';
+
+  try {
+    if (!req.file) {
+      return res
+        .status(400)
+        .json({
+          message:
+            'Resume file is required.'
+        });
+    }
+
+    temporaryFilePath =
+      req.file.path;
+
+    fs.copyFileSync(
+      temporaryFilePath,
+      RESUME_FILE
+    );
+
+    fs.writeFileSync(
+      `${RESUME_FILE}.meta`,
+      JSON.stringify(
+        {
+          originalName:
+            req.file.originalname,
+
+          uploadedAt:
+            new Date()
+              .toISOString(),
+
+          /*
+           * Store ownership metadata now,
+           * even though the physical file is
+           * still shared temporarily.
+           */
+          userId:
+            req.user?.id ||
+            null
+        },
+        null,
+        2
+      ),
+      'utf8'
+    );
+
+    deleteTemporaryFile(
+      temporaryFilePath
+    );
+
+    temporaryFilePath = '';
+
+    return res.json({
+      message:
+        'Resume uploaded successfully.',
+
+      fileName:
+        req.file.originalname,
+
+      uploaded:
+        true
+    });
+  } catch (error) {
+    console.error(
+      'Resume upload failed:',
+      error
+    );
+
+    try {
+      deleteTemporaryFile(
+        temporaryFilePath
+      );
+    } catch (
+      cleanupError
+    ) {
+      console.error(
+        'Unable to remove temporary resume file:',
+        cleanupError.message
+      );
+    }
+
+    return res
+      .status(500)
+      .json({
+        message:
+          'Failed to upload resume.',
+
+        error:
+          error.message
+      });
+  }
+}
+
+function deleteResume(
+  req,
+  res
+) {
+  try {
+    if (
+      fs.existsSync(
+        RESUME_FILE
+      )
+    ) {
+      fs.unlinkSync(
+        RESUME_FILE
+      );
+    }
+
+    if (
+      fs.existsSync(
+        `${RESUME_FILE}.meta`
+      )
+    ) {
+      fs.unlinkSync(
+        `${RESUME_FILE}.meta`
+      );
+    }
+
+    return res.json({
+      message:
+        'Resume deleted successfully.',
+
+      uploaded:
+        false,
+
+      fileName:
+        null
+    });
+  } catch (error) {
+    console.error(
+      'Resume deletion failed:',
+      error
+    );
+
+    return res
+      .status(500)
+      .json({
+        message:
+          'Failed to delete resume.',
+
+        error:
+          error.message
+      });
+  }
+}
+
+function getResumeStatus(
+  req,
+  res
+) {
+  try {
+    const resumeExists =
+      fs.existsSync(
+        RESUME_FILE
+      );
+
+    const metadataExists =
+      fs.existsSync(
+        `${RESUME_FILE}.meta`
+      );
+
+    let fileName = null;
+    let uploadedAt = null;
+    let ownerUserId = null;
+
+    if (
+      resumeExists &&
+      metadataExists
+    ) {
+      try {
+        const metadata =
+          JSON.parse(
+            fs.readFileSync(
+              `${RESUME_FILE}.meta`,
+              'utf8'
+            )
+          );
+
+        fileName =
+          metadata.originalName ||
+          null;
+
+        uploadedAt =
+          metadata.uploadedAt ||
+          null;
+
+        ownerUserId =
+          metadata.userId ||
+          null;
+      } catch (error) {
+        console.error(
+          'Unable to read resume metadata:',
+          error.message
+        );
+      }
+    }
+
+    /*
+     * While resume storage is still shared,
+     * avoid exposing another user's file name.
+     */
+    const belongsToCurrentUser =
+      !ownerUserId ||
+      ownerUserId ===
+        req.user?.id;
+
+    return res.json({
+      uploaded:
+        resumeExists &&
+        belongsToCurrentUser,
+
+      fileName:
+        belongsToCurrentUser
+          ? fileName
+          : null,
+
+      uploadedAt:
+        belongsToCurrentUser
+          ? uploadedAt
+          : null,
+
+      storage:
+        'LOCAL_TEMPORARY'
+    });
+  } catch (error) {
+    console.error(
+      'Unable to read resume status:',
+      error
+    );
+
+    return res
+      .status(500)
+      .json({
+        message:
+          'Failed to read resume status.',
+
+        error:
+          error.message
+      });
+  }
+}
+
+module.exports = {
+  uploadEmails,
+  uploadResume,
+  deleteResume,
+  getResumeStatus
+};
