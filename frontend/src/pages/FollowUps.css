@@ -14,29 +14,29 @@
 
 .page-heading h1 {
   margin: 0 0 8px;
-  color: #071a3d;
+  color: var(--text);
   font-size: 38px;
 }
 
 .page-heading p {
   margin: 0;
-  color: #66758a;
+  color: var(--muted);
 }
 
 .followup-panel {
   padding: 24px;
   margin-bottom: 22px;
-  background: #ffffff;
-  border: 1px solid #dde5ef;
+  background: var(--panel);
+  backdrop-filter: var(--panel-blur);
+  -webkit-backdrop-filter: var(--panel-blur);
+  border: 1px solid var(--border);
   border-radius: 16px;
-  box-shadow:
-    0 8px 26px
-    rgba(17, 40, 80, 0.06);
+  box-shadow: 0 8px 26px rgba(17, 40, 80, 0.06);
 }
 
 .followup-panel h2 {
   margin-top: 0;
-  color: #071a3d;
+  color: var(--text);
 }
 
 .followup-grid {
@@ -54,7 +54,7 @@
 .template-field span {
   display: block;
   margin-bottom: 8px;
-  color: #192b49;
+  color: var(--text);
   font-weight: 700;
 }
 
@@ -63,9 +63,10 @@
   width: 100%;
   box-sizing: border-box;
   padding: 14px;
-  border: 1px solid #bdc9d9;
+  border: 1px solid var(--border);
   border-radius: 9px;
-  color: #152642;
+  background: var(--bg);
+  color: var(--text);
   font: inherit;
 }
 
@@ -82,25 +83,25 @@
   border-radius: 8px;
   font-weight: 700;
   cursor: pointer;
+  border: none;
 }
 
 .primary-button {
   color: #ffffff;
-  background: #0b63ce;
-  border: none;
+  background: linear-gradient(135deg, var(--blue), var(--blue-dark));
 }
 
 .secondary-button {
-  color: #0b4b91;
-  background: #eef6ff;
-  border: 1px solid #a9cef7;
+  color: var(--accent);
+  background: rgba(108, 92, 231, 0.1);
+  border: 1px solid rgba(108, 92, 231, 0.3);
 }
 
 .danger-button,
 .row-delete-button {
-  color: #a21628;
-  background: #fff0f2;
-  border: 1px solid #f2bac2;
+  color: var(--red);
+  background: rgba(220, 38, 38, 0.1);
+  border: 1px solid rgba(220, 38, 38, 0.3);
 }
 
 .primary-button:disabled,
@@ -112,13 +113,13 @@
 }
 
 .usage-text {
-  color: #66758a;
+  color: var(--muted);
 }
 
 .date-folder {
   margin-bottom: 14px;
   overflow: hidden;
-  border: 1px solid #dde5ef;
+  border: 1px solid var(--border);
   border-radius: 11px;
 }
 
@@ -128,15 +129,15 @@
   width: 100%;
   gap: 10px;
   padding: 16px;
-  color: #102648;
-  background: #f5f8fc;
+  color: var(--text);
+  background: transparent;
   border: none;
   cursor: pointer;
   text-align: left;
 }
 
 .folder-header:hover {
-  background: #edf4fd;
+  background: var(--border);
 }
 
 .folder-arrow {
@@ -148,15 +149,15 @@
 }
 
 .folder-count {
-  color: #66758a;
+  color: var(--muted);
   font-size: 13px;
 }
 
 .selected-count {
   margin-left: auto;
   padding: 4px 9px;
-  color: #17653a;
-  background: #eaf8f0;
+  color: #059669;
+  background: rgba(5, 150, 105, 0.12);
   border-radius: 20px;
   font-size: 12px;
   font-weight: 800;
@@ -164,7 +165,7 @@
 
 .folder-content {
   padding: 14px;
-  background: #ffffff;
+  background: transparent;
 }
 
 .folder-actions {
@@ -177,7 +178,7 @@
 .email-list {
   max-height: 410px;
   overflow-y: auto;
-  border: 1px solid #e4eaf2;
+  border: 1px solid var(--border);
   border-radius: 9px;
 }
 
@@ -187,7 +188,7 @@
   justify-content: space-between;
   gap: 14px;
   padding: 13px;
-  border-bottom: 1px solid #edf1f6;
+  border-bottom: 1px solid var(--border);
 }
 
 .email-row:last-child {
@@ -195,7 +196,7 @@
 }
 
 .email-row:hover {
-  background: #f8fbff;
+  background: var(--border);
 }
 
 .email-select {
@@ -218,12 +219,12 @@
 }
 
 .email-details strong {
-  color: #13284a;
+  color: var(--text);
   overflow-wrap: anywhere;
 }
 
 .email-details span {
-  color: #66758a;
+  color: var(--muted);
   font-size: 13px;
 }
 
@@ -234,8 +235,8 @@
 
 .empty-state {
   padding: 24px;
-  color: #718198;
-  background: #f8fafc;
+  color: var(--muted);
+  background: var(--border);
   border-radius: 10px;
   text-align: center;
 }
@@ -248,15 +249,15 @@
 }
 
 .success-message {
-  color: #17653a;
-  background: #eaf8f0;
-  border: 1px solid #a9dec0;
+  color: #059669;
+  background: rgba(5, 150, 105, 0.12);
+  border: 1px solid rgba(5, 150, 105, 0.3);
 }
 
 .error-message {
-  color: #a21628;
-  background: #fff0f2;
-  border: 1px solid #f2bac2;
+  color: var(--red);
+  background: rgba(220, 38, 38, 0.1);
+  border: 1px solid rgba(220, 38, 38, 0.3);
 }
 
 .status-row {
@@ -265,8 +266,7 @@
   justify-content: space-between;
   gap: 12px;
   padding: 13px 0;
-  border-bottom:
-    1px solid #edf1f6;
+  border-bottom: 1px solid var(--border);
 }
 
 .status-row > div {
@@ -276,8 +276,12 @@
 }
 
 .status-row span {
-  color: #66758a;
+  color: var(--muted);
   font-size: 13px;
+}
+
+.status-row strong {
+  color: var(--text);
 }
 
 .status-badge {
@@ -289,13 +293,18 @@
 }
 
 .status-badge.replied {
-  color: #17653a;
-  background: #eaf8f0;
+  color: #059669;
+  background: rgba(5, 150, 105, 0.12);
 }
 
 .status-badge.completed {
-  color: #164d8c;
-  background: #eaf3ff;
+  color: var(--accent);
+  background: rgba(108, 92, 231, 0.12);
+}
+
+.status-badge.failed {
+  color: var(--red);
+  background: rgba(220, 38, 38, 0.1);
 }
 
 @media (
