@@ -5,33 +5,6 @@
   user-select: none;
 }
 
-::view-transition-old(root),
-::view-transition-new(root) {
-  animation: none;
-  mix-blend-mode: normal;
-}
-
-::view-transition-old(root) {
-  z-index: 1;
-}
-
-::view-transition-new(root) {
-  z-index: 2;
-}
-
-@keyframes liquid-reveal {
-  from {
-    clip-path: circle(0% at var(--ripple-x, 50%) var(--ripple-y, 50%));
-  }
-  to {
-    clip-path: circle(150% at var(--ripple-x, 50%) var(--ripple-y, 50%));
-  }
-}
-
-html.theme-animating::view-transition-new(root) {
-  animation: liquid-reveal 0.65s cubic-bezier(0.65, 0, 0.35, 1);
-}
-
 :root {
   --bg: #050816;
   --panel: rgba(10,14,32,0.75);
@@ -82,7 +55,7 @@ html[data-theme='light'] {
 
 body {
   margin: 0;
-  font-family: 'Inter', Arial, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Inter', ui-sans-serif, system-ui, Arial, sans-serif;
   background: var(--bg);
   color: var(--text);
   transition: background .3s, color .3s;

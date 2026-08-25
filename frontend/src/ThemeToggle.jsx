@@ -15,21 +15,8 @@ function ThemeToggle() {
 
   const isLight = theme === 'light';
 
-  function toggle(event) {
-    const next = isLight ? 'dark' : 'light';
-    const x = event.clientX;
-    const y = event.clientY;
-    const root = document.documentElement;
-    root.style.setProperty('--ripple-x', `${x}px`);
-    root.style.setProperty('--ripple-y', `${y}px`);
-
-    if (document.startViewTransition) {
-      root.classList.add('theme-animating');
-      const transition = document.startViewTransition(() => setTheme(next));
-      transition.finished.finally(() => root.classList.remove('theme-animating'));
-    } else {
-      setTheme(next);
-    }
+  function toggle() {
+    setTheme(isLight ? 'dark' : 'light');
   }
 
   return (
