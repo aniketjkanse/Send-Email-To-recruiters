@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 
 function getInitialTheme() {
   const saved = localStorage.getItem('theme');
-  return saved === 'light' ? 'light' : 'dark';
+  return saved === 'dark' ? 'dark' : 'light';
 }
 
 function ThemeToggle() {

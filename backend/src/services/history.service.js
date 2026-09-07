@@ -2,8 +2,16 @@ const fs = require('fs');
 const ExcelJS = require('exceljs');
 
 const {
-  SEND_HISTORY_FILE
-} = require('../utils/path.util');
+  workspaceFile
+} = require('../utils/workspace.util');
+
+/*
+ * History is per-template. Resolve the active workspace's history file
+ * on every call so switching templates switches the history.
+ */
+function SEND_HISTORY_FILE() {
+  return workspaceFile('send_history.xlsx');
+}
 
 function configureSheet(sheet) {
   sheet.columns = [
@@ -41,24 +49,41 @@ function configureSheet(sheet) {
 }
 
 async function appendHistory(records) {
+  const historyFile = SEND_HISTORY_FILE();
+
   const workbook =
     new ExcelJS.Workbook();
 
   let sheet;
 
   if (
-    fs.existsSync(
-      SEND_HISTORY_FILE
-    )
+    fs.existsSync(historyFile) &&
+    fs.statSync(historyFile).size > 0
   ) {
-    await workbook.xlsx.readFile(
-      SEND_HISTORY_FILE
-    );
-
-    sheet =
-      workbook.getWorksheet(
-        'Send History'
+    try {
+      await workbook.xlsx.readFile(
+        historyFile
       );
+
+      sheet =
+        workbook.getWorksheet(
+          'Send History'
+        );
+    } catch (err) {
+      // Corrupted workbook — back it up and start a fresh one
+      // so a send never crashes on a bad history file.
+      console.error(
+        'send_history.xlsx unreadable, starting fresh:',
+        err.message
+      );
+      try {
+        fs.renameSync(
+          historyFile,
+          `${historyFile}.corrupt-${Date.now()}`
+        );
+      } catch (_) {}
+      sheet = undefined;
+    }
   }
 
   if (!sheet) {
@@ -157,9 +182,11 @@ async function appendHistory(records) {
     }
   });
 
-  await workbook.xlsx.writeFile(
-    SEND_HISTORY_FILE
-  );
+  // Atomic write: write to a temp file, then rename over the real one.
+  // A crash mid-write leaves the temp file garbage, not the real history.
+  const tmpFile = `${historyFile}.tmp-${process.pid}`;
+  await workbook.xlsx.writeFile(tmpFile);
+  fs.renameSync(tmpFile, historyFile);
 }
 
 module.exports = {

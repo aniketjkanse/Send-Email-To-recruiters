@@ -49,6 +49,12 @@ app.use('/api/history', historyRoutes);
 app.use('/api/config', configRoutes);
 app.use('/api/followups', followUpRoutes);
 
+const frontendDist = path.join(__dirname, '..', '..', 'frontend', 'dist');
+app.use(express.static(frontendDist));
+app.get(/^(?!\/api|\/uploads).*/, (req, res) => {
+  res.sendFile(path.join(frontendDist, 'index.html'));
+});
+
 app.listen(PORT, () => {
   console.log(
     `Backend running on port ${PORT}`

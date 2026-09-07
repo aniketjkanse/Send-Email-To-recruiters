@@ -1,6 +1,6 @@
 const {
-  SENT_EMAILS_FILE
-} = require('../utils/path.util');
+  workspaceFile
+} = require('../utils/workspace.util');
 
 const {
   readJson,
@@ -133,10 +133,16 @@ async function cancellableWait(seconds) {
   return true;
 }
 
-function saveSentEmailImmediately(email) {
+function saveSentEmailImmediately(email, templateId) {
+  const sentEmailsFile =
+    workspaceFile(
+      'sent_emails.json',
+      templateId
+    );
+
   const currentSentEmails =
     readJson(
-      SENT_EMAILS_FILE,
+      sentEmailsFile,
       []
     )
       .map(normalizeEmail)
@@ -159,7 +165,7 @@ function saveSentEmailImmediately(email) {
   ];
 
   writeJson(
-    SENT_EMAILS_FILE,
+    sentEmailsFile,
     updatedSentEmails
   );
 
@@ -314,7 +320,8 @@ async function runScheduler() {
          */
         try {
           saveSentEmailImmediately(
-            email
+            email,
+            template.templateId
           );
         } catch (error) {
           console.error(

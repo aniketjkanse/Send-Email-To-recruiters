@@ -1,5 +1,5 @@
 const { readTextLines, readJson } = require('../utils/file.util');
-const { EXTRACTED_EMAILS_FILE, SENT_EMAILS_FILE } = require('../utils/path.util');
+const { workspaceFile } = require('../utils/workspace.util');
 const DEFAULT_BLOCKED_DOMAINS = ['gmail.com','yahoo.com','hotmail.com','outlook.com','rediffmail.com','icloud.com','protonmail.com'];
 const EMAIL_PATTERN = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/;
 function normalizeEmail(email) { return String(email || '').toLowerCase().trim(); }
@@ -17,11 +17,12 @@ function extractEmailFromLine(line) {
   const match = String(line || '').match(EMAIL_PATTERN);
   return match ? match[0] : '';
 }
-function readExtractedEmails() { return readTextLines(EXTRACTED_EMAILS_FILE).map(extractEmailFromLine).map(normalizeEmail).filter(Boolean); }
-function readSentEmails() { return readJson(SENT_EMAILS_FILE, []).map(normalizeEmail); }
+function readExtractedEmails(templateId) { return readTextLines(workspaceFile('extracted_emails.txt', templateId)).map(extractEmailFromLine).map(normalizeEmail).filter(Boolean); }
+function readSentEmails(templateId) { return readJson(workspaceFile('sent_emails.json', templateId), []).map(normalizeEmail); }
 function buildEmailPreview(template = {}) {
-  const extractedEmails = readExtractedEmails();
-  const oldSentSet = new Set(readSentEmails());
+  const templateId = template.templateId;
+  const extractedEmails = readExtractedEmails(templateId);
+  const oldSentSet = new Set(readSentEmails(templateId));
   const uniqueInputEmails = [...new Set(extractedEmails)];
   const blockedDomains = template.blockedDomains || DEFAULT_BLOCKED_DOMAINS;
   const skipPersonalEmails = template.skipPersonalEmails !== false;

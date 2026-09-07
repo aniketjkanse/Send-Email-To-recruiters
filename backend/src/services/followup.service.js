@@ -1,13 +1,21 @@
 const crypto = require('crypto');
 
 const {
-  FOLLOWUP_TRACKER_FILE
-} = require('../utils/path.util');
+  workspaceFile
+} = require('../utils/workspace.util');
 
 const {
   readJson,
   writeJson
 } = require('../utils/file.util');
+
+/*
+ * Follow-up tracking is per-template. Resolve the active workspace's
+ * tracker file on each access.
+ */
+function FOLLOWUP_TRACKER_FILE() {
+  return workspaceFile('followup_tracker.json');
+}
 
 const {
   readTemplate,
@@ -24,7 +32,7 @@ const {
 
 function readRecords() {
   const records = readJson(
-    FOLLOWUP_TRACKER_FILE,
+    FOLLOWUP_TRACKER_FILE(),
     []
   );
 
@@ -35,7 +43,7 @@ function readRecords() {
 
 function saveRecords(records) {
   writeJson(
-    FOLLOWUP_TRACKER_FILE,
+    FOLLOWUP_TRACKER_FILE(),
     records
   );
 }

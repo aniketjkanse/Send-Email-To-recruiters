@@ -2,4 +2,11 @@ node_modules
 .env
 src/data/uploads/*
 src/data/sent_emails.json
+src/data/payment_details.local.txt
 src/data/send_history.xlsx
+src/data/email_template.json
+src/data/extracted_emails.txt
+src/data/followup_tracker.json
+src/data/sender_config.json
+src/data/workspaces/
+*.log

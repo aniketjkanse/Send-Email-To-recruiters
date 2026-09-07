@@ -1,6 +1,7 @@
 import {
   useEffect,
   useMemo,
+  useRef,
   useState
 } from 'react';
 
@@ -213,6 +214,32 @@ function FollowUps() {
     setMessageType
   ] = useState('');
 
+  /*
+   * Live sync: keep the page fresh so replied recipients drop out of
+   * the eligible lists without a manual refresh.
+   */
+  const [
+    autoSync,
+    setAutoSync
+  ] = useState(true);
+
+  const [
+    lastSync,
+    setLastSync
+  ] = useState(null);
+
+  const [
+    syncing,
+    setSyncing
+  ] = useState(false);
+
+  const loadingRef = useRef(false);
+  const autoSyncRef = useRef(autoSync);
+
+  useEffect(() => {
+    autoSyncRef.current = autoSync;
+  }, [autoSync]);
+
   const followUp1Folders =
     useMemo(
       () =>
@@ -239,7 +266,7 @@ function FollowUps() {
       ]
     );
 
-  async function loadPage() {
+  async function loadPage(silent = false) {
     const response =
       await fetch(API_URL);
 
@@ -253,14 +280,20 @@ function FollowUps() {
       );
     }
 
-    setPageData({
+    setPageData(current => ({
       ...emptyPageData,
       ...result,
 
-      templates: {
-        ...emptyPageData.templates,
-        ...(result.templates || {})
-      },
+      /*
+       * On a background sync, keep whatever the user has typed into
+       * the follow-up settings fields instead of overwriting it.
+       */
+      templates: silent
+        ? current.templates
+        : {
+            ...emptyPageData.templates,
+            ...(result.templates || {})
+          },
 
       dailyUsage: {
         ...emptyPageData.dailyUsage,
@@ -320,7 +353,44 @@ function FollowUps() {
       failed:
         result.failed ||
         []
-    });
+    }));
+
+    setLastSync(new Date());
+  }
+
+  /*
+   * Ask the backend to scan Gmail for new replies, then refresh the
+   * page. Runs quietly (no button spinner, no message banner) so it can
+   * happen on a timer without disrupting the user.
+   */
+  async function syncReplies({ silent = true } = {}) {
+    if (loadingRef.current || syncing) {
+      return;
+    }
+
+    setSyncing(true);
+
+    try {
+      await fetch(
+        `${API_URL}/check-replies`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type':
+              'application/json'
+          }
+        }
+      );
+
+      await loadPage(silent);
+    } catch (error) {
+      if (!silent) {
+        setMessage(error.message);
+        setMessageType('error');
+      }
+    } finally {
+      setSyncing(false);
+    }
   }
 
   useEffect(() => {
@@ -333,6 +403,45 @@ function FollowUps() {
         'error'
       );
     });
+
+    /*
+     * Fast, cheap poll: just re-read the tracker file so the lists
+     * stay current after sends or reply detection.
+     */
+    const pageTimer = setInterval(() => {
+      if (loadingRef.current) {
+        return;
+      }
+
+      loadPage(true).catch(() => {});
+    }, 15000);
+
+    /*
+     * Slower poll: actually scan Gmail for replies so anyone who
+     * responded stops receiving follow-ups automatically.
+     */
+    const replyTimer = setInterval(() => {
+      if (!autoSyncRef.current) {
+        return;
+      }
+
+      syncReplies({ silent: true });
+    }, 120000);
+
+    /*
+     * Run one reply scan shortly after opening the page.
+     */
+    const firstScan = setTimeout(() => {
+      if (autoSyncRef.current) {
+        syncReplies({ silent: true });
+      }
+    }, 3000);
+
+    return () => {
+      clearInterval(pageTimer);
+      clearInterval(replyTimer);
+      clearTimeout(firstScan);
+    };
   }, []);
 
   function updateTemplate(
@@ -356,6 +465,7 @@ function FollowUps() {
     options = {}
   ) {
     setLoading(true);
+    loadingRef.current = true;
     setMessage('');
     setMessageType('');
 
@@ -436,6 +546,7 @@ function FollowUps() {
       );
     } finally {
       setLoading(false);
+      loadingRef.current = false;
     }
   }
 
@@ -943,18 +1054,48 @@ function FollowUps() {
           </p>
         </div>
 
-        <button
-          type="button"
-          className="primary-button"
-          disabled={loading}
-          onClick={
-            checkReplies
-          }
-        >
-          {loading
-            ? 'Checking...'
-            : 'Check Replies'}
-        </button>
+        <div className="sync-controls">
+          <label className="sync-toggle">
+            <input
+              type="checkbox"
+              checked={autoSync}
+              onChange={event =>
+                setAutoSync(
+                  event.target.checked
+                )
+              }
+            />
+            <span>
+              Live sync
+              {autoSync
+                ? syncing
+                  ? ' — checking replies…'
+                  : ' — on'
+                : ' — off'}
+            </span>
+          </label>
+
+          <span className="sync-status">
+            {lastSync
+              ? `Last synced ${lastSync.toLocaleTimeString(
+                  'en-IN'
+                )}`
+              : 'Not synced yet'}
+          </span>
+
+          <button
+            type="button"
+            className="primary-button"
+            disabled={loading}
+            onClick={
+              checkReplies
+            }
+          >
+            {loading
+              ? 'Checking...'
+              : 'Check Replies Now'}
+          </button>
+        </div>
       </div>
 
       {message && (

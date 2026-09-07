@@ -1,13 +1,20 @@
-const fs = require('fs');
 const nodemailer = require('nodemailer');
-
-const {
-  RESUME_FILE
-} = require('../utils/path.util');
 
 const {
   readSenderConfig
 } = require('./senderConfig.service');
+
+const {
+  getResumeInfo
+} = require('./resume.service');
+
+const {
+  createGmailDraft
+} = require('./draft.service');
+
+const {
+  personalizeText
+} = require('../utils/personalize.util');
 
 function normalizeGmailAddress(value) {
   const normalized = String(value || '')
@@ -89,41 +96,21 @@ function createGmailTransporter(
   });
 }
 
-function buildAttachments() {
-  if (!fs.existsSync(RESUME_FILE)) {
+function buildAttachments(template) {
+  const resume =
+    getResumeInfo(
+      template && template.templateId
+    );
+
+  if (!resume.uploaded) {
     return [];
-  }
-
-  let filename = 'Resume.pdf';
-
-  const metadataFile =
-    `${RESUME_FILE}.meta`;
-
-  if (fs.existsSync(metadataFile)) {
-    try {
-      const metadata =
-        JSON.parse(
-          fs.readFileSync(
-            metadataFile,
-            'utf8'
-          )
-        );
-
-      filename =
-        metadata.originalName ||
-        filename;
-    } catch (error) {
-      console.log(
-        'Unable to read resume metadata:',
-        error.message
-      );
-    }
   }
 
   return [
     {
-      filename,
-      path: RESUME_FILE,
+      filename:
+        resume.originalName || 'Resume.pdf',
+      path: resume.path,
       contentType:
         'application/pdf'
     }
@@ -142,6 +129,22 @@ async function sendEmail(
 
   const isFollowUp =
     options.isFollowUp === true;
+
+  /*
+   * Personalise the greeting from the recipient address (and expand any
+   * {{firstName}} tokens). Role inboxes fall back to "Hi there,".
+   */
+  const resolvedSubject =
+    personalizeText(
+      options.subject || template.subject,
+      toEmail
+    );
+
+  const resolvedBody =
+    personalizeText(
+      options.body || template.body,
+      toEmail
+    );
 
   console.log(
     '========== EMAIL SEND START =========='
@@ -165,18 +168,93 @@ async function sendEmail(
   );
 
   if (dryRun) {
-    console.log(
-      `[DRY RUN] Email not sent to ${toEmail}`
-    );
+    const draftCredentials =
+      getGmailCredentials();
 
-    return {
-      status: 'DRY_RUN',
+    if (
+      !draftCredentials.emailUser ||
+      !draftCredentials.emailPass
+    ) {
+      console.log(
+        `[DRY RUN] Gmail credentials missing — no draft created for ${toEmail}`
+      );
 
-      reason:
-        `Dry run enabled. Email not actually sent to ${toEmail}.`,
+      return {
+        status: 'DRY_RUN',
 
-      messageId: ''
+        reason:
+          `Dry run: draft not created (Gmail credentials missing). Nothing sent to ${toEmail}.`,
+
+        messageId: ''
+      };
+    }
+
+    const draftMailOptions = {
+      from:
+        draftCredentials.emailUser,
+
+      to:
+        String(toEmail || '')
+          .trim()
+          .toLowerCase(),
+
+      subject: resolvedSubject,
+
+      text: resolvedBody,
+
+      attachments:
+        isFollowUp
+          ? []
+          : buildAttachments(template)
     };
+
+    if (
+      isFollowUp &&
+      options.parentMessageId
+    ) {
+      draftMailOptions.inReplyTo =
+        options.parentMessageId;
+
+      draftMailOptions.references =
+        Array.isArray(options.references) &&
+        options.references.length
+          ? options.references
+          : [options.parentMessageId];
+    }
+
+    try {
+      const draft =
+        await createGmailDraft(
+          draftMailOptions
+        );
+
+      console.log(
+        `[DRY RUN] Draft created in "${draft.mailbox}" for ${toEmail} (not sent)`
+      );
+
+      return {
+        status: 'DRY_RUN',
+
+        reason:
+          `Dry run: draft created in Gmail ("${draft.mailbox}"). Not sent to ${toEmail}.`,
+
+        messageId: ''
+      };
+    } catch (error) {
+      console.error(
+        `[DRY RUN] Draft creation failed for ${toEmail}:`,
+        error.message
+      );
+
+      return {
+        status: 'DRY_RUN',
+
+        reason:
+          `Dry run: draft creation failed (${error.message}). Nothing sent to ${toEmail}.`,
+
+        messageId: ''
+      };
+    }
   }
 
   const credentials =
@@ -222,13 +300,9 @@ async function sendEmail(
     to:
       normalizedRecipient,
 
-    subject:
-      options.subject ||
-      template.subject,
+    subject: resolvedSubject,
 
-    text:
-      options.body ||
-      template.body,
+    text: resolvedBody,
 
     /*
      * Attach resume only to the
@@ -237,7 +311,7 @@ async function sendEmail(
     attachments:
       isFollowUp
         ? []
-        : buildAttachments()
+        : buildAttachments(template)
   };
 
   /*

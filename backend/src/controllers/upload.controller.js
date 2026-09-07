@@ -1,9 +1,12 @@
 const fs = require('fs');
 
 const {
-  EXTRACTED_EMAILS_FILE,
   RESUME_FILE
 } = require('../utils/path.util');
+
+const { workspaceFile } = require('../utils/workspace.util');
+const { getResumeInfo } = require('../services/resume.service');
+const { readTemplate } = require('../services/template.service');
 
 function uploadEmails(req, res) {
   if (!req.file) {
@@ -12,7 +15,7 @@ function uploadEmails(req, res) {
     });
   }
 
-  fs.copyFileSync(req.file.path, EXTRACTED_EMAILS_FILE);
+  fs.copyFileSync(req.file.path, workspaceFile('extracted_emails.txt'));
   fs.unlinkSync(req.file.path);
 
   return res.json({
@@ -66,22 +69,24 @@ function deleteResume(req, res) {
 }
 
 function getResumeStatus(req, res) {
-  let fileName = null;
+  /*
+   * Reflect the resume attached to the currently active template
+   * (falls back to the shared legacy resume when none is set).
+   */
+  let templateId;
 
-  if (
-    fs.existsSync(RESUME_FILE) &&
-    fs.existsSync(`${RESUME_FILE}.meta`)
-  ) {
-    const meta = JSON.parse(
-      fs.readFileSync(`${RESUME_FILE}.meta`, 'utf8')
-    );
-
-    fileName = meta.originalName;
+  try {
+    templateId = readTemplate().templateId;
+  } catch (error) {
+    templateId = 'default';
   }
 
+  const info = getResumeInfo(templateId);
+
   return res.json({
-    uploaded: fs.existsSync(RESUME_FILE),
-    fileName
+    uploaded: info.uploaded,
+    fileName: info.originalName,
+    templateSpecific: info.own
   });
 }
 

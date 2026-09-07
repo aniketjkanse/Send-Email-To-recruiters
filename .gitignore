@@ -1,5 +1,7 @@
 node_modules
 .env
+.DS_Store
+*.log
 
 backend/.env
 backend/node_modules
@@ -8,6 +10,10 @@ backend/src/data/extracted_emails.txt
 backend/src/data/sent_emails.json
 backend/src/data/send_history.xlsx
 backend/src/data/sender_config.json
+backend/src/data/payment_details.local.txt
+backend/src/data/email_template.json
+backend/src/data/followup_tracker.json
+backend/src/data/workspaces/
 
 frontend/node_modules
 frontend/.env

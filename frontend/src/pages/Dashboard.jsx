@@ -1,26 +1,37 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { api } from '../services/api';
 import SummaryCard from '../components/SummaryCard';
 import FileDropzone from '../components/FileDropzone.jsx';
 import { useToast } from '../ToastContext.jsx';
 import { STATUS_META, useSchedulerStatusToast } from '../schedulerStatus.js';
+import { staggerContainer, itemVariants } from '../motion.jsx';
+
+function localDayKey(date) {
+  const d = new Date(date);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
 
 function buildWeeklyData(records) {
+  const todayKey = localDayKey(new Date());
   const days = [];
   for (let i = 6; i >= 0; i--) {
     const d = new Date();
     d.setDate(d.getDate() - i);
+    const key = localDayKey(d);
     days.push({
-      key: d.toISOString().slice(0, 10),
+      key,
       label: d.toLocaleDateString(undefined, { weekday: 'short' }),
+      isToday: key === todayKey,
       count: 0
     });
   }
   const map = Object.fromEntries(days.map((d) => [d.key, d]));
   records.forEach((r) => {
-    if (r.status !== 'SENT' || !r.sentat) return;
-    const key = String(r.sentat).slice(0, 10);
+    const sentAt = r.sentAt ?? r.sentat;
+    if (r.status !== 'SENT' || !sentAt) return;
+    const key = localDayKey(sentAt);
     if (map[key]) map[key].count += 1;
   });
   return days;
@@ -45,18 +56,24 @@ function Dashboard() {
   const [resumeStatus, setResumeStatus] = useState(null);
   const [uploadResult, setUploadResult] = useState(null);
 
+  const [templates, setTemplates] = useState([]);
+  const [activeTemplateId, setActiveTemplateId] = useState('');
+
   const notify = useToast();
   useSchedulerStatusToast(status);
 
   async function load() {
-    const [p, s, h, r] = await Promise.all([
+    const [p, s, h, r, t] = await Promise.all([
       api.get('/preview'),
       api.get('/send/status'),
       api.get('/history'),
-      api.get('/upload/resume/status')
+      api.get('/upload/resume/status'),
+      api.get('/template/list')
     ]);
     setPreview(p.data);
     setStatus(s.data);
+    setTemplates(t.data.templates || []);
+    setActiveTemplateId(t.data.activeTemplateId || '');
     const records = h.data.records || [];
     setWeekly(buildWeeklyData(records));
     setHistoryStats({
@@ -75,7 +92,9 @@ function Dashboard() {
 
   const meta = STATUS_META[status?.status] || STATUS_META.IDLE;
   const isLive = status?.status === 'RUNNING' || status?.status === 'STOPPING';
+  const activeTemplate = templates.find((t) => t.id === activeTemplateId);
   const maxCount = Math.max(1, ...weekly.map((d) => d.count));
+  const weekTotal = weekly.reduce((sum, d) => sum + d.count, 0);
   const totalAttempts = historyStats.sent + historyStats.failed;
   const successRate = totalAttempts ? Math.round((historyStats.sent / totalAttempts) * 100) : 100;
 
@@ -129,13 +148,13 @@ function Dashboard() {
   }
 
   return (
-    <section>
-      <div className="mb-1 flex flex-wrap items-center justify-between gap-3">
+    <motion.section variants={staggerContainer} initial="initial" animate="animate">
+      <motion.div variants={itemVariants} className="mb-1 flex flex-wrap items-center justify-between gap-3">
         <h1>
           {getGreeting()}
         </h1>
 
-        <div className="card flex items-center gap-2 !p-2.5 !px-4 shadow-glow">
+        <div className="card flex items-center gap-2 !p-2.5 !px-4">
           <span className="relative flex h-2.5 w-2.5">
             {isLive && (
               <span className={`absolute inline-flex h-full w-full animate-ping rounded-full ${meta.color} opacity-75`} />
@@ -144,33 +163,33 @@ function Dashboard() {
           </span>
           <span className={`text-sm font-semibold ${meta.text}`}>{meta.label}</span>
         </div>
-      </div>
+      </motion.div>
 
-      <p className="muted">
+      <motion.p variants={itemVariants} className="muted">
         Here's how your outreach is trending
         {totalAttempts > 0 && (
           <>
             {' '}— <span className="font-semibold text-[var(--text)]">{successRate}%</span> success rate all-time.
           </>
         )}
-      </p>
+      </motion.p>
 
-      <div className="grid-cards">
-        <SummaryCard label="Total Input" value={preview?.totalInput ?? 0} loading={loading} />
-        <SummaryCard label="New Emails" value={preview?.newEmails?.length ?? 0} tone="success" loading={loading} />
-        <SummaryCard label="Already Sent" value={preview?.alreadySentEmails?.length ?? 0} tone="warning" loading={loading} />
-        <SummaryCard label="Blocked" value={preview?.blockedEmails?.length ?? 0} tone="danger" loading={loading} />
-        <SummaryCard label="Invalid" value={preview?.invalidEmails?.length ?? 0} tone="danger" loading={loading} />
-        <SummaryCard label="Scheduler" value={status?.status ?? 'IDLE'} loading={loading} />
-      </div>
+      <motion.div variants={staggerContainer} className="grid-cards">
+        <SummaryCard label="Input" icon="inbox" value={preview?.totalInput ?? 0} loading={loading} />
+        <SummaryCard label="New" icon="mark_email_unread" value={preview?.newEmails?.length ?? 0} tone="success" loading={loading} />
+        <SummaryCard label="Sent" icon="mark_email_read" value={preview?.alreadySentEmails?.length ?? 0} tone="warning" loading={loading} />
+        <SummaryCard label="Blocked" icon="block" value={preview?.blockedEmails?.length ?? 0} tone="danger" loading={loading} />
+        <SummaryCard label="Invalid" icon="report" value={preview?.invalidEmails?.length ?? 0} tone="danger" loading={loading} />
+        <SummaryCard label="Scheduler" icon="bolt" value={status?.status ?? 'IDLE'} loading={loading} />
+      </motion.div>
 
-      <div className="panel mt-4">
+      <motion.div variants={itemVariants} className="panel mt-4">
         <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
           <h2 className="m-0 text-base font-semibold text-[var(--text)]">Quick Send</h2>
 
           <div className="flex items-center gap-2">
             <Link
-              to="/upload"
+              to="/template"
               title="Check / edit resume"
               className="flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--border)] text-[var(--muted)] transition-all hover:border-accent hover:text-accent"
             >
@@ -226,6 +245,23 @@ function Dashboard() {
           </div>
         )}
 
+        <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-[var(--border)] pt-4 text-sm">
+          <span className="text-[var(--muted)]">Sending as</span>
+          <span className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-600 bg-emerald-600/10 px-2.5 py-1 font-semibold text-emerald-600">
+            <span className="h-2 w-2 rounded-full bg-emerald-500" />
+            {activeTemplate?.name || '—'}
+          </span>
+          {activeTemplate?.dryRun && (
+            <span className="rounded-md bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-500">
+              dry run
+            </span>
+          )}
+          <Link to="/template" className="text-xs font-semibold text-accent hover:underline">
+            Edit
+          </Link>
+          <span className="ml-auto text-xs text-[var(--muted)]">Switch template from the top bar</span>
+        </div>
+
         <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-[var(--border)] pt-4">
           <button className="btn-glow flex items-center gap-2" onClick={startScheduler} disabled={isLive}>
             <span className="material-symbols-outlined" style={{ fontSize: 17 }}>
@@ -256,14 +292,14 @@ function Dashboard() {
           ) : (
             'No resume uploaded yet'
           )}
-          <Link to="/upload" className="ml-auto font-semibold text-accent hover:underline">
+          <Link to="/template" className="ml-auto font-semibold text-accent hover:underline">
             Edit
           </Link>
         </div>
-      </div>
+      </motion.div>
 
       {isLive && status?.selected > 0 && (
-        <div className="panel animate-popIn">
+        <motion.div variants={itemVariants} className="panel">
           <div className="mb-2 flex items-center justify-between text-sm">
             <span className="font-semibold text-[var(--text)]">Send progress</span>
             <span className="text-[var(--muted)]">
@@ -283,31 +319,78 @@ function Dashboard() {
               Currently sending: <span className="font-medium text-[var(--text)]">{status.currentEmail}</span>
             </p>
           )}
-        </div>
+        </motion.div>
       )}
 
-      <div className="panel mt-6">
+      <motion.div variants={itemVariants} className="panel mt-6">
         <div className="mb-5 flex items-center justify-between">
           <h2 className="m-0 text-base font-semibold text-[var(--text)]">Weekly Activity</h2>
-          <span className="text-xs text-[var(--muted)]">Emails sent, last 7 days</span>
+          <span className="text-xs text-[var(--muted)]">
+            {weekTotal} sent · last 7 days
+          </span>
         </div>
-        <div className="flex h-32 items-end justify-between gap-2">
-          {weekly.map((day) => {
-            const height = Math.max(6, Math.round((day.count / maxCount) * 100));
-            return (
-              <div key={day.key} className="flex h-full flex-1 flex-col items-center justify-end gap-2">
-                <div
-                  className="w-full max-w-8 rounded-lg bg-gradient-to-t from-accent to-accent-light transition-all duration-700 hover:brightness-125 hover:shadow-glow"
-                  style={{ height: `${height}%` }}
-                  title={`${day.count} sent`}
-                />
-                <span className="text-[11px] font-medium text-[var(--muted)]">{day.label}</span>
-              </div>
-            );
-          })}
+
+        <div className="flex gap-3">
+          {/* y-axis scale */}
+          <div className="flex h-40 w-6 flex-col justify-between py-1 text-right text-[10px] text-[var(--muted)]">
+            <span>{maxCount}</span>
+            <span>{Math.round(maxCount / 2)}</span>
+            <span>0</span>
+          </div>
+
+          {/* plot area */}
+          <div className="relative flex-1">
+            <div className="pointer-events-none absolute inset-0 flex flex-col justify-between">
+              <div className="border-t border-[var(--border)]" />
+              <div className="border-t border-dashed border-[var(--border)] opacity-60" />
+              <div className="border-t border-[var(--border)]" />
+            </div>
+
+            <div className="relative flex h-40 items-end justify-between gap-2">
+              {weekly.map((day) => {
+                const height = maxCount ? Math.round((day.count / maxCount) * 100) : 0;
+                return (
+                  <div
+                    key={day.key}
+                    className="group flex h-full flex-1 flex-col items-center justify-end"
+                  >
+                    <span
+                      className={`mb-1 text-[11px] font-semibold transition-opacity ${
+                        day.count ? 'text-[var(--text)]' : 'text-transparent'
+                      }`}
+                    >
+                      {day.count}
+                    </span>
+                    <div
+                      className={`w-full max-w-9 rounded-t-md transition-all duration-700 group-hover:brightness-125 group-hover:shadow-glow ${
+                        day.isToday
+                          ? 'bg-gradient-to-t from-accent-dark to-accent-light ring-2 ring-accent/40'
+                          : 'bg-gradient-to-t from-accent to-accent-light'
+                      }`}
+                      style={{ height: `${Math.max(day.count ? 4 : 2, height)}%` }}
+                      title={`${day.key} — ${day.count} sent`}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="mt-2 flex justify-between gap-2">
+              {weekly.map((day) => (
+                <span
+                  key={day.key}
+                  className={`flex-1 text-center text-[11px] font-medium ${
+                    day.isToday ? 'text-accent' : 'text-[var(--muted)]'
+                  }`}
+                >
+                  {day.label}
+                </span>
+              ))}
+            </div>
+          </div>
         </div>
-      </div>
-    </section>
+      </motion.div>
+    </motion.section>
   );
 }
 
